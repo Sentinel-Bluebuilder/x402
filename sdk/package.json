@@ -1,0 +1,30 @@
+{
+  "name": "x402-connect",
+  "version": "0.1.0",
+  "description": "AI agents pay USDC on Base/Solana for private VPN access through Sentinel's decentralized network",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "ethers": "^6.13.0"
+  },
+  "optionalDependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "@solana/spl-token": "^0.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "keywords": ["vpn", "ai", "agent", "usdc", "base", "solana", "sentinel", "privacy", "x402"],
+  "license": "MIT"
+}
