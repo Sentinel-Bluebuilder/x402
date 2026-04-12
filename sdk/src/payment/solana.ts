@@ -55,9 +55,10 @@ export async function payOnSolana(opts: {
   const tx = new Transaction();
 
   // Memo instruction (routing info for our backend)
+  // Memo program takes NO account keys — only the data payload
   const memo = `${MEMO_PREFIX}${opts.agentId}:hours:${opts.hours}`;
   tx.add({
-    keys: [{ pubkey: keypair.publicKey, isSigner: true, isWritable: false }],
+    keys: [],
     programId: MEMO_PROGRAM,
     data: Buffer.from(memo, 'utf-8'),
   });

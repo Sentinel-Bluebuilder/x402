@@ -25,6 +25,7 @@ export interface ConnectResult {
   sessionId: string;
   agentId: string;
   sentinelAddress: string;
+  sentinelMnemonic: string;  // SAVE THIS — controls your VPN sessions
   paymentTxHash: string;
 }
 

@@ -3,7 +3,7 @@ import type { Db } from './db/index.js';
 import type { Config } from './config.js';
 import type { SentinelOperator } from './sentinel-tx.js';
 import { provisionAgent } from './sentinel-tx.js';
-import { ErrorCodes } from './errors.js';
+import { queueRetry } from './retry.js';
 
 // ─── Contract ABI (only what we need) ───
 
@@ -18,17 +18,13 @@ async function processPaymentEvent(
   numHours: number,
   amount: bigint,
   txHash: string,
-  sender: string,
   db: Db,
   config: Config,
   operator: SentinelOperator | null,
 ): Promise<void> {
   // 1. Dedup — already processed?
   const existing = db.getPaymentByTxHash(txHash);
-  if (existing) {
-    console.log(`[x402] Skipping duplicate payment: ${txHash}`);
-    return;
-  }
+  if (existing) return;
 
   // 2. Resolve agentId → sentinel address
   const agent = db.getAgentById(agentId);
@@ -49,7 +45,7 @@ async function processPaymentEvent(
   }
 
   // 4. Insert payment as verified
-  db.insertPayment(txHash, 'base', agentId, agent.sentinel_address, numHours, Number(amount));
+  const paymentId = db.insertPayment(txHash, 'base', agentId, agent.sentinel_address, numHours, Number(amount));
   db.updatePaymentStatus(txHash, 'verified');
 
   console.log(`[x402] Payment verified: ${agentId} → ${agent.sentinel_address}, ${numHours}h, ${amount} USDC atomic (tx: ${txHash})`);
@@ -67,11 +63,11 @@ async function processPaymentEvent(
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[x402] Sentinel provisioning failed: ${msg}`);
     db.updatePaymentStatus(txHash, 'failed', { error: msg });
-    // TODO: Add to retry queue
+    queueRetry(db, paymentId, msg);
   }
 }
 
-// ─── Watcher ───
+// ─── Watcher with Reconnection ───
 
 export function startBaseWatcher(
   db: Db,
@@ -83,55 +79,83 @@ export function startBaseWatcher(
     return { stop: () => {} };
   }
 
-  console.log(`[x402] Starting Base watcher for contract ${config.paymentContractAddress}`);
+  let stopped = false;
+  let provider: ethers.Provider | null = null;
+  let contract: ethers.Contract | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Prefer WebSocket, fall back to polling
-  const providerUrl = config.baseWsUrl || config.baseRpcUrl;
-  const provider = providerUrl.startsWith('wss')
-    ? new ethers.WebSocketProvider(providerUrl)
-    : new ethers.JsonRpcProvider(providerUrl);
-
-  const contract = new ethers.Contract(config.paymentContractAddress, PAYMENT_ABI, provider);
-
-  // Listen for VpnPayment events
-  const handler = async (
-    sender: string,
-    agentId: string,
-    numHours: bigint,
-    amount: bigint,
-    timestamp: bigint,
-    event: ethers.EventLog,
-  ) => {
-    const txHash = event.transactionHash;
-    console.log(`[x402] VpnPayment event: agent=${agentId} hours=${numHours} amount=${amount} tx=${txHash}`);
+  async function connectAndWatch() {
+    if (stopped) return;
 
     try {
-      await processPaymentEvent(
-        agentId,
-        Number(numHours),
-        amount,
-        txHash,
-        sender,
-        db,
-        config,
-        operator,
-      );
+      // Clean up previous connection
+      if (provider && 'destroy' in provider) {
+        (provider as ethers.WebSocketProvider).destroy();
+      }
+
+      // Connect
+      const providerUrl = config.baseWsUrl || config.baseRpcUrl;
+      provider = providerUrl.startsWith('wss')
+        ? new ethers.WebSocketProvider(providerUrl)
+        : new ethers.JsonRpcProvider(providerUrl);
+
+      contract = new ethers.Contract(config.paymentContractAddress, PAYMENT_ABI, provider);
+
+      console.log(`[x402] Base watcher connected to ${providerUrl}`);
+
+      // Listen for events
+      contract.on('VpnPayment', async (
+        _sender: string,
+        agentId: string,
+        numHours: bigint,
+        amount: bigint,
+        _timestamp: bigint,
+        event: ethers.EventLog,
+      ) => {
+        try {
+          await processPaymentEvent(agentId, Number(numHours), amount, event.transactionHash, db, config, operator);
+        } catch (err) {
+          console.error('[x402] Error processing payment event:', err);
+        }
+      });
+
+      // WebSocket disconnect handler — auto-reconnect
+      if (provider instanceof ethers.WebSocketProvider) {
+        const ws = provider.websocket as any;
+        if (ws && typeof ws.on === 'function') {
+          ws.on('close', () => {
+            if (stopped) return;
+            console.log('[x402] Base WebSocket disconnected — reconnecting in 5s...');
+            reconnectTimer = setTimeout(connectAndWatch, 5000);
+          });
+          ws.on('error', (err: Error) => {
+            console.error('[x402] Base WebSocket error:', err.message);
+          });
+        }
+      }
+
+      // Catch-up scan for missed events
+      await catchUpMissedEvents(contract, db, config, operator);
+
     } catch (err) {
-      console.error(`[x402] Error processing payment event:`, err);
+      console.error('[x402] Base watcher connection failed:', err);
+      if (!stopped) {
+        console.log('[x402] Retrying in 10s...');
+        reconnectTimer = setTimeout(connectAndWatch, 10_000);
+      }
     }
-  };
+  }
 
-  contract.on('VpnPayment', handler);
-
-  // Catch-up: scan recent blocks for missed events on startup
-  catchUpMissedEvents(contract, db, config, operator).catch(err => {
-    console.error('[x402] Catch-up scan failed:', err);
-  });
+  connectAndWatch();
 
   return {
     stop: () => {
-      contract.off('VpnPayment', handler);
-      if ('destroy' in provider) (provider as ethers.WebSocketProvider).destroy();
+      stopped = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (contract) contract.removeAllListeners();
+      if (provider && 'destroy' in provider) {
+        (provider as ethers.WebSocketProvider).destroy();
+      }
     },
   };
 }
@@ -144,7 +168,7 @@ async function catchUpMissedEvents(
   config: Config,
   operator: SentinelOperator | null,
 ): Promise<void> {
-  const LOOKBACK_BLOCKS = 1000; // ~33 minutes on Base (2s blocks)
+  const LOOKBACK_BLOCKS = 1000;
 
   try {
     const provider = contract.runner?.provider;
@@ -162,21 +186,15 @@ async function catchUpMissedEvents(
     for (const event of events) {
       if (!('args' in event)) continue;
       const log = event as ethers.EventLog;
-      const [sender, agentId, numHours, amount] = log.args;
-      const txHash = log.transactionHash;
+      const [_sender, agentId, numHours, amount] = log.args;
 
-      // Skip already processed
-      if (db.getPaymentByTxHash(txHash)) continue;
+      if (db.getPaymentByTxHash(log.transactionHash)) continue;
 
-      await processPaymentEvent(agentId, Number(numHours), amount, txHash, sender, db, config, operator);
+      await processPaymentEvent(agentId, Number(numHours), amount, log.transactionHash, db, config, operator);
       processed++;
     }
 
-    if (processed > 0) {
-      console.log(`[x402] Catch-up: processed ${processed} missed events`);
-    } else {
-      console.log(`[x402] Catch-up: no missed events`);
-    }
+    console.log(`[x402] Catch-up: ${processed > 0 ? `processed ${processed} missed events` : 'no missed events'}`);
   } catch (err) {
     console.error('[x402] Catch-up error:', err);
   }

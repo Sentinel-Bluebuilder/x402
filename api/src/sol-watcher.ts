@@ -3,6 +3,7 @@ import type { Db } from './db/index.js';
 import type { Config } from './config.js';
 import type { SentinelOperator } from './sentinel-tx.js';
 import { provisionAgent } from './sentinel-tx.js';
+import { queueRetry } from './retry.js';
 import { MEMO_PREFIX } from './config.js';
 
 // ─── Memo Parsing ───
@@ -108,7 +109,7 @@ async function processHeliusEvent(
   }
 
   // 6. Record payment
-  db.insertPayment(signature, 'solana', parsed.agentId, agent.sentinel_address, parsed.hours, usdcAtomic);
+  const paymentId = db.insertPayment(signature, 'solana', parsed.agentId, agent.sentinel_address, parsed.hours, usdcAtomic);
   db.updatePaymentStatus(signature, 'verified');
 
   console.log(`[x402] Solana payment verified: ${parsed.agentId} → ${agent.sentinel_address}, ${parsed.hours}h, ${usdcAtomic} USDC atomic (${signature})`);
@@ -126,6 +127,7 @@ async function processHeliusEvent(
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[x402] Sentinel provisioning failed for Solana payment: ${msg}`);
     db.updatePaymentStatus(signature, 'failed', { error: msg });
+    queueRetry(db, paymentId, msg);
   }
 }
 
@@ -142,9 +144,11 @@ export function solanaWebhookRoutes(db: Db, config: Config, operator: SentinelOp
   console.log('[x402] Solana webhook endpoint active: POST /webhook/helius');
 
   router.post('/webhook/helius', async (req, res) => {
-    // 1. Verify webhook auth
-    const authHeader = req.headers['authorization'];
-    if (authHeader !== config.heliusWebhookSecret) {
+    // 1. Verify webhook auth (Helius sends secret in Authorization header)
+    // Supports both: raw secret match and Bearer token format
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    if (token !== config.heliusWebhookSecret) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }

@@ -106,9 +106,7 @@ export async function connect(opts: ConnectOptions): Promise<ConnectResult> {
     const result = await generateWallet();
     sentinelMnemonic = result.mnemonic;
     sentinelAddress = result.account.address;
-    progress('wallet', `New wallet created: ${sentinelAddress}`);
-    // IMPORTANT: Agent must save this mnemonic locally
-    console.log(`[x402] SAVE THIS MNEMONIC — it controls your VPN sessions:\n${sentinelMnemonic}`);
+    progress('wallet', `New wallet created: ${sentinelAddress}. Save the mnemonic from the response!`);
   }
 
   // ─── Step 2: Register with our API ───
@@ -200,13 +198,14 @@ export async function connect(opts: ConnectOptions): Promise<ConnectResult> {
       sessionId: String(vpnResult.sessionId || ''),
       agentId,
       sentinelAddress,
+      sentinelMnemonic: sentinelMnemonic!,
       paymentTxHash: paymentTxHash,
     };
   } catch (vpnErr) {
     // Payment succeeded, allocation succeeded, but VPN connection failed.
-    // Agent can retry connection without paying again.
+    // Agent can retry connection without paying again — use sentinelMnemonic.
     const msg = vpnErr instanceof Error ? vpnErr.message : String(vpnErr);
-    console.error(`[x402] VPN connection failed (payment is safe): ${msg}`);
+    console.error(`[x402] VPN connection failed (payment is safe — retry with sentinelMnemonic): ${msg}`);
     return {
       connected: false,
       ip: '',
@@ -216,6 +215,7 @@ export async function connect(opts: ConnectOptions): Promise<ConnectResult> {
       sessionId: '',
       agentId,
       sentinelAddress,
+      sentinelMnemonic: sentinelMnemonic!,
       paymentTxHash: paymentTxHash,
     };
   }

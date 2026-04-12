@@ -10,7 +10,7 @@ const BACKOFF = [30, 60, 120, 300, 600]; // 30s, 1m, 2m, 5m, 10m
 function nextRetryTime(attempt: number): string {
   const delaySec = BACKOFF[Math.min(attempt, BACKOFF.length - 1)];
   const next = new Date(Date.now() + delaySec * 1000);
-  return next.toISOString().replace('T', ' ').replace('Z', '');
+  return next.toISOString().replace('T', ' ').slice(0, 19); // SQLite datetime format
 }
 
 // ─── Queue Failed Payment for Retry ───
@@ -18,7 +18,7 @@ function nextRetryTime(attempt: number): string {
 export function queueRetry(db: Db, paymentId: number, error: string): void {
   const retryAt = nextRetryTime(0);
   db.insertRetry(paymentId, retryAt, error);
-  console.log(`[x402] Queued retry for payment ${paymentId}, next attempt at ${retryAt}`);
+  console.log(`[x402] Queued retry for payment #${paymentId}, next at ${retryAt}`);
 }
 
 // ─── Process Retry Queue ───
@@ -34,32 +34,44 @@ export async function processRetries(
   let processed = 0;
 
   for (const entry of pending) {
+    // Max retries exhausted
     if (entry.attempt >= entry.max_attempts) {
-      db.updateRetry(entry.id, 'exhausted', 'Max retries reached');
-      console.log(`[x402] Retry exhausted for payment ${entry.payment_id}`);
+      db.updateRetry(entry.id, 'exhausted', undefined, 'Max retries reached');
+      console.log(`[x402] Retry exhausted for payment #${entry.payment_id} after ${entry.attempt} attempts`);
       continue;
     }
 
-    // Get the payment
-    const payments = db.getPaymentsByAgent(''); // need payment by ID — use tx_hash lookup via status
-    // Find payment by iterating (small table, acceptable)
-    const allVerified = db.getPendingRetries(); // This is a simplification — in production, add getPaymentById
+    // Get the actual payment
+    const payment = db.getPaymentById(entry.payment_id);
+    if (!payment) {
+      db.updateRetry(entry.id, 'exhausted', undefined, 'Payment not found');
+      continue;
+    }
 
-    db.updateRetry(entry.id, 'processing');
+    // Only retry verified payments (not already allocated or failed-permanently)
+    if (payment.status !== 'verified' && payment.status !== 'received') {
+      db.updateRetry(entry.id, 'succeeded', undefined, `Payment already ${payment.status}`);
+      continue;
+    }
+
+    // Need sentinel address to provision
+    if (!payment.sentinel_address) {
+      db.updateRetry(entry.id, 'exhausted', undefined, 'No sentinel address for payment');
+      continue;
+    }
+
+    console.log(`[x402] Retrying payment #${entry.payment_id} (attempt ${entry.attempt + 1}/${entry.max_attempts})`);
 
     try {
-      // Re-attempt provisioning
-      // We need the payment details — for now, log and skip if we can't find them
-      console.log(`[x402] Retrying payment ${entry.payment_id} (attempt ${entry.attempt + 1}/${entry.max_attempts})`);
-
-      // Mark as succeeded — the actual retry logic will be wired when we have getPaymentById
+      await provisionAgent(operator, db, config, payment.sentinel_address, payment.hours, payment.tx_hash);
       db.updateRetry(entry.id, 'succeeded');
+      console.log(`[x402] Retry succeeded for payment #${entry.payment_id}`);
       processed++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const nextAt = nextRetryTime(entry.attempt + 1);
-      db.updateRetry(entry.id, 'pending', msg);
-      console.error(`[x402] Retry failed for payment ${entry.payment_id}: ${msg}. Next at ${nextAt}`);
+      db.updateRetry(entry.id, 'pending', nextAt, msg);
+      console.error(`[x402] Retry failed for payment #${entry.payment_id}: ${msg}. Next at ${nextAt}`);
     }
   }
 

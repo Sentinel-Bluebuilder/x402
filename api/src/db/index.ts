@@ -9,7 +9,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export async function createDb(dbPath: string): Promise<Db> {
   const SQL = await initSqlJs();
 
-  // Load existing DB or create new
   const dir = dirname(dbPath);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
@@ -38,8 +37,13 @@ export class Db {
   // ─── Persistence ───
 
   save(): void {
-    const data = this.sqlite.export();
-    writeFileSync(this.dbPath, Buffer.from(data));
+    try {
+      const data = this.sqlite.export();
+      writeFileSync(this.dbPath, Buffer.from(data));
+    } catch (err) {
+      console.error('[x402] CRITICAL: Database save failed:', err);
+      // Don't throw — in-memory state is still valid, next save may succeed
+    }
   }
 
   private run(sql: string, params: unknown[] = []): void {
@@ -102,19 +106,32 @@ export class Db {
 
   // ─── Payments ───
 
-  insertPayment(txHash: string, chain: string, agentId: string, sentinelAddress: string | null, hours: number, usdcAmount: number): void {
-    this.run(
-      'INSERT INTO payments (tx_hash, chain, agent_id, sentinel_address, hours, usdc_amount) VALUES (?, ?, ?, ?, ?, ?)',
-      [txHash, chain, agentId, sentinelAddress, hours, usdcAmount],
-    );
+  insertPayment(txHash: string, chain: string, agentId: string, sentinelAddress: string | null, hours: number, usdcAmount: number): number {
+    try {
+      this.run(
+        'INSERT INTO payments (tx_hash, chain, agent_id, sentinel_address, hours, usdc_amount) VALUES (?, ?, ?, ?, ?, ?)',
+        [txHash, chain, agentId, sentinelAddress, hours, usdcAmount],
+      );
+      // Get the ID of the inserted row
+      return this.scalar('SELECT id FROM payments WHERE tx_hash = ?', [txHash]);
+    } catch (err) {
+      // UNIQUE constraint violation = already exists (dedup race)
+      const existing = this.getPaymentByTxHash(txHash);
+      if (existing) return existing.id;
+      throw err;
+    }
+  }
+
+  getPaymentById(id: number): Payment | undefined {
+    return this.get<Payment>('SELECT * FROM payments WHERE id = ?', [id]);
   }
 
   getPaymentByTxHash(txHash: string): Payment | undefined {
     return this.get<Payment>('SELECT * FROM payments WHERE tx_hash = ?', [txHash]);
   }
 
-  getPaymentsByAgent(agentId: string): Payment[] {
-    return this.all<Payment>('SELECT * FROM payments WHERE agent_id = ? ORDER BY created_at DESC', [agentId]);
+  getPaymentsByAgent(agentId: string, limit: number = 100): Payment[] {
+    return this.all<Payment>('SELECT * FROM payments WHERE agent_id = ? ORDER BY created_at DESC LIMIT ?', [agentId, limit]);
   }
 
   updatePaymentStatus(txHash: string, status: string, extra?: { sentinelTxHash?: string; subscriptionId?: string; error?: string }): void {
@@ -135,22 +152,28 @@ export class Db {
 
   // ─── Subscription Pool ───
 
-  getAvailableSubscription(planId: number): PoolSubscription | undefined {
-    return this.get<PoolSubscription>(
+  // Atomic: find available subscription AND increment count in one operation.
+  // Prevents race condition where two payments grab the same slot.
+  allocateSubscriptionSlot(planId: number): PoolSubscription | undefined {
+    // Find the subscription with available slots
+    const sub = this.get<PoolSubscription>(
       "SELECT * FROM subscription_pool WHERE plan_id = ? AND status = 'active' AND allocation_count < 8 ORDER BY allocation_count ASC LIMIT 1",
       [planId],
     );
+
+    if (!sub) return undefined;
+
+    // Immediately increment — sql.js is synchronous so no race between get and update
+    this.run(
+      "UPDATE subscription_pool SET allocation_count = allocation_count + 1, status = CASE WHEN allocation_count + 1 >= 8 THEN 'full' ELSE 'active' END WHERE subscription_id = ? AND allocation_count < 8",
+      [sub.subscription_id],
+    );
+
+    return sub;
   }
 
   insertSubscription(subscriptionId: string, planId: number): void {
     this.run('INSERT INTO subscription_pool (subscription_id, plan_id) VALUES (?, ?)', [subscriptionId, planId]);
-  }
-
-  recordAllocation(subscriptionId: string): void {
-    this.run(
-      "UPDATE subscription_pool SET allocation_count = allocation_count + 1, status = CASE WHEN allocation_count + 1 >= 8 THEN 'full' ELSE 'active' END WHERE subscription_id = ?",
-      [subscriptionId],
-    );
   }
 
   getPoolStats() {
@@ -169,11 +192,15 @@ export class Db {
   }
 
   getPendingRetries(): RetryEntry[] {
-    return this.all<RetryEntry>("SELECT * FROM retry_queue WHERE status = 'pending' AND next_retry_at <= datetime('now') ORDER BY next_retry_at ASC");
+    return this.all<RetryEntry>("SELECT * FROM retry_queue WHERE status = 'pending' AND next_retry_at <= datetime('now') ORDER BY next_retry_at ASC LIMIT 10");
   }
 
-  updateRetry(id: number, status: string, error?: string): void {
-    this.run('UPDATE retry_queue SET status = ?, attempt = attempt + 1, error = ? WHERE id = ?', [status, error ?? null, id]);
+  updateRetry(id: number, status: string, nextRetryAt?: string, error?: string): void {
+    if (nextRetryAt) {
+      this.run('UPDATE retry_queue SET status = ?, attempt = attempt + 1, next_retry_at = ?, error = ? WHERE id = ?', [status, nextRetryAt, error ?? null, id]);
+    } else {
+      this.run('UPDATE retry_queue SET status = ?, attempt = attempt + 1, error = ? WHERE id = ?', [status, error ?? null, id]);
+    }
   }
 
   countRetries(status: string): number {
