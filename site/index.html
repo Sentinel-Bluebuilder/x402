@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>x402 — Private Internet for AI Agents</title>
+<meta name="description" content="AI agents pay USDC on Base or Solana for private VPN access through 900+ decentralized nodes. One function call. No KYC. No accounts.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ─── Reset & Variables ─── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0e17;
+  --bg-raised: #111827;
+  --bg-code: #0d1321;
+  --surface: #1a2235;
+  --border: #1e2d45;
+  --border-bright: #2a3f5f;
+  --text: #e2e8f0;
+  --text-muted: #8494a7;
+  --text-dim: #4a5c73;
+  --accent: #1E88E5;
+  --accent-bright: #42a5f5;
+  --accent-glow: rgba(30, 136, 229, 0.15);
+  --accent-subtle: rgba(30, 136, 229, 0.08);
+  --green: #10b981;
+  --green-dim: rgba(16, 185, 129, 0.12);
+  --orange: #f59e0b;
+  --red: #ef4444;
+  --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection { background: var(--accent); color: white; }
+
+a { color: var(--accent-bright); text-decoration: none; transition: color 0.2s; }
+a:hover { color: white; }
+
+/* ─── Ambient Background ─── */
+.ambient {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.ambient::before {
+  content: '';
+  position: absolute;
+  top: -20%; left: -10%;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(30, 136, 229, 0.06) 0%, transparent 70%);
+  animation: drift 25s ease-in-out infinite;
+}
+
+.ambient::after {
+  content: '';
+  position: absolute;
+  bottom: -10%; right: -10%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.04) 0%, transparent 70%);
+  animation: drift 30s ease-in-out infinite reverse;
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(60px, 40px); }
+}
+
+/* ─── Layout ─── */
+.container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+
+/* ─── Nav ─── */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10, 14, 23, 0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+
+nav .inner {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+}
+
+nav .logo {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 18px;
+  color: white;
+  letter-spacing: -0.5px;
+}
+
+nav .logo span { color: var(--accent); }
+
+nav .links { display: flex; gap: 28px; }
+
+nav .links a {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  transition: color 0.2s;
+}
+
+nav .links a:hover { color: white; }
+
+/* ─── Hero ─── */
+.hero {
+  padding: 100px 0 80px;
+  text-align: center;
+}
+
+.hero .protocol-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--accent-subtle);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--accent-bright);
+  letter-spacing: 0.5px;
+  margin-bottom: 28px;
+  text-transform: uppercase;
+}
+
+.hero .protocol-badge::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.hero h1 {
+  font-size: clamp(36px, 5vw, 52px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -1.5px;
+  margin-bottom: 20px;
+  color: white;
+}
+
+.hero h1 .highlight {
+  background: linear-gradient(135deg, var(--accent-bright), #64b5f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero .subtitle {
+  font-size: 18px;
+  color: var(--text-muted);
+  max-width: 540px;
+  margin: 0 auto 40px;
+  line-height: 1.6;
+}
+
+.hero .code-preview {
+  max-width: 520px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+/* ─── Code Blocks ─── */
+.code-block {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.code-block .bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+
+.code-block .bar .dots {
+  display: flex; gap: 6px;
+}
+
+.code-block .bar .dots span {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--border-bright);
+}
+
+.code-block .bar .label {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+.code-block pre {
+  padding: 20px;
+  overflow-x: auto;
+}
+
+.code-block code { color: var(--text-muted); }
+.code-block .kw { color: #c792ea; }
+.code-block .fn { color: #82aaff; }
+.code-block .str { color: #c3e88d; }
+.code-block .num { color: #f78c6c; }
+.code-block .cm { color: #546e7a; }
+.code-block .prop { color: #ffcb6b; }
+.code-block .op { color: #89ddff; }
+
+/* ─── Sections ─── */
+section { padding: 80px 0; }
+
+section .section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+section h2 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: white;
+  margin-bottom: 16px;
+}
+
+section .desc {
+  color: var(--text-muted);
+  font-size: 15px;
+  margin-bottom: 40px;
+  max-width: 600px;
+}
+
+/* ─── Pricing ─── */
+.pricing-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  padding: 36px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.pricing-card .left h3 {
+  font-size: 22px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.pricing-card .price {
+  font-family: var(--font-mono);
+  font-size: 40px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: -2px;
+  margin-bottom: 4px;
+}
+
+.pricing-card .price span {
+  font-size: 16px;
+  color: var(--text-muted);
+  letter-spacing: 0;
+}
+
+.pricing-card .price-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+
+.pricing-card .features {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pricing-card .features li {
+  font-size: 14px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pricing-card .features li::before {
+  content: '';
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--green-dim);
+  border: 1.5px solid var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pricing-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pricing-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pricing-table td {
+  padding: 10px 0;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(30, 45, 69, 0.5);
+}
+
+.pricing-table td:first-child { font-weight: 500; color: white; }
+.pricing-table td:last-child {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+/* ─── Flow ─── */
+.flow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+.flow-step {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 20px;
+  padding: 24px 0;
+  position: relative;
+}
+
+.flow-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 27px;
+  top: 72px;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--border-bright), var(--border));
+}
+
+.flow-step .step-num {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--border-bright);
+  background: var(--bg-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent-bright);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.flow-step .step-content h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.flow-step .step-content p {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.flow-step .step-content .tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.tag-agent { background: var(--accent-glow); color: var(--accent-bright); border: 1px solid rgba(30,136,229,0.3); }
+.tag-backend { background: var(--green-dim); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+.tag-chain { background: rgba(245,158,11,0.1); color: var(--orange); border: 1px solid rgba(245,158,11,0.25); }
+
+/* ─── Security ─── */
+.security-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.security-item {
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+
+.security-item h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 6px;
+}
+
+.security-item p {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ─── Chains ─── */
+.chain-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.chain-card {
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+
+.chain-card .chain-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.chain-card .chain-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+.chain-card .chain-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(30, 45, 69, 0.5);
+  font-size: 13px;
+}
+
+.chain-card .chain-stat:last-child { border: none; }
+.chain-card .chain-stat .label { color: var(--text-muted); }
+.chain-card .chain-stat .val {
+  font-family: var(--font-mono);
+  color: var(--text);
+  font-size: 12px;
+}
+
+/* ─── Contract ─── */
+.contract-box {
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.contract-box .contract-label {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.contract-box .contract-addr {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--accent-bright);
+  word-break: break-all;
+}
+
+.contract-box .copy-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-bright);
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.contract-box .copy-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* ─── Footer ─── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 40px 24px;
+  text-align: center;
+}
+
+footer p {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+footer a { color: var(--text-muted); }
+footer a:hover { color: white; }
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+/* ─── Divider ─── */
+.divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--border-bright), transparent);
+  margin: 0;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 700px) {
+  .pricing-card { grid-template-columns: 1fr; }
+  .security-grid { grid-template-columns: 1fr; }
+  .chain-cards { grid-template-columns: 1fr; }
+  .contract-box { flex-direction: column; align-items: flex-start; }
+  nav .links { gap: 16px; }
+  nav .links a { font-size: 12px; }
+}
+
+/* ─── Animations ─── */
+.fade-in {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: fadeIn 0.6s ease forwards;
+}
+
+.fade-in:nth-child(2) { animation-delay: 0.1s; }
+.fade-in:nth-child(3) { animation-delay: 0.2s; }
+.fade-in:nth-child(4) { animation-delay: 0.3s; }
+
+@keyframes fadeIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+<div class="ambient"></div>
+
+<!-- ─── Nav ─── -->
+<nav>
+  <div class="inner">
+    <div class="logo"><span>x</span>402</div>
+    <div class="links">
+      <a href="#pricing">Pricing</a>
+      <a href="#flow">How It Works</a>
+      <a href="#security">Security</a>
+      <a href="https://github.com/Sentinel-Autonomybuilder/x402" target="_blank">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ─── Hero ─── -->
+<section class="hero">
+  <div class="container">
+    <div class="protocol-badge fade-in">Live on Base Mainnet</div>
+    <h1 class="fade-in">Private internet<br>for <span class="highlight">AI agents</span></h1>
+    <p class="subtitle fade-in">Pay USDC on Base or Solana. Connect to 900+ decentralized VPN nodes in 70+ countries. One function call. No KYC. No accounts.</p>
+
+    <div class="code-preview fade-in">
+      <div class="code-block">
+        <div class="bar">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <div class="label">agent.ts</div>
+        </div>
+        <pre><code><span class="kw">import</span> { <span class="fn">connect</span> } <span class="kw">from</span> <span class="str">'x402-connect'</span><span class="op">;</span>
+
+<span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
+  <span class="prop">payment</span><span class="op">:</span> {
+    <span class="prop">chain</span><span class="op">:</span> <span class="str">'base'</span><span class="op">,</span>
+    <span class="prop">walletKey</span><span class="op">:</span> process<span class="op">.</span>env<span class="op">.</span>EVM_KEY<span class="op">,</span>
+    <span class="prop">days</span><span class="op">:</span> <span class="num">30</span><span class="op">,</span>       <span class="cm">// $1.00</span>
+  }<span class="op">,</span>
+})<span class="op">;</span>
+
+<span class="cm">// vpn.connected = true</span>
+<span class="cm">// vpn.ip = '45.152.243.12'</span>
+<span class="cm">// vpn.country = 'Germany'</span></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── Pricing ─── -->
+<section id="pricing">
+  <div class="container">
+    <div class="section-label">Pricing</div>
+    <h2>Pay per day. No subscriptions.</h2>
+    <p class="desc">Agents pay upfront for exactly the days they need. One payment, one transaction, done. Minimum 1 day.</p>
+
+    <div class="pricing-card">
+      <div class="left">
+        <h3>Unlimited VPN</h3>
+        <div class="price">$1<span>/month</span></div>
+        <div class="price-sub">$0.033 per day &middot; Billed in USDC</div>
+        <ul class="features">
+          <li>900+ nodes in 70+ countries</li>
+          <li>Unlimited bandwidth</li>
+          <li>WireGuard + V2Ray tunnels</li>
+          <li>No KYC, no accounts</li>
+          <li>Pay on Base or Solana</li>
+        </ul>
+      </div>
+      <div class="right">
+        <table class="pricing-table">
+          <thead><tr><th>Duration</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>1 day</td><td>$0.033</td></tr>
+            <tr><td>7 days</td><td>$0.23</td></tr>
+            <tr><td>30 days</td><td>$1.00</td></tr>
+            <tr><td>90 days</td><td>$3.00</td></tr>
+            <tr><td>365 days</td><td>$12.17</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── Flow ─── -->
+<section id="flow">
+  <div class="container">
+    <div class="section-label">How It Works</div>
+    <h2>Register. Pay. Connect.</h2>
+    <p class="desc">Three steps from zero to private internet. The entire flow takes under 60 seconds.</p>
+
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Agent registers</h4>
+          <p>Agent creates a Sentinel wallet (offline, free) and registers its address with our API. Gets back an agentId. Sentinel address never appears on Base or Solana.</p>
+          <span class="tag tag-agent">Agent</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Agent pays USDC</h4>
+          <p>Calls <code>contract.pay(agentId, 30)</code> on Base. USDC transfers to operator wallet. VpnPayment event emitted on-chain. That's the only transaction the agent sends.</p>
+          <span class="tag tag-chain">Base / Solana</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Backend provisions access</h4>
+          <p>Our backend sees the payment event, resolves agentId to the Sentinel address, and sends one atomic transaction: MsgShareSubscription + MsgGrantAllowance. Agent now has access and pays zero gas on Sentinel.</p>
+          <span class="tag tag-backend">Automatic</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Agent connects to VPN</h4>
+          <p>Agent starts a session on Sentinel (zero gas, fee granted), handshakes directly with a VPN node, and establishes an encrypted tunnel. We never see the handshake, the tunnel credentials, or the traffic.</p>
+          <span class="tag tag-agent">Agent &harr; Node</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── Code Examples ─── -->
+<section id="code">
+  <div class="container">
+    <div class="section-label">Integration</div>
+    <h2>One function call</h2>
+    <p class="desc">Install the SDK, call connect(), be private. The SDK handles wallet creation, registration, payment, polling, and VPN tunnel establishment.</p>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="label">Install</div>
+      </div>
+      <pre><code><span class="fn">npm install</span> x402-connect</code></pre>
+    </div>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="label">Connect on Base</div>
+      </div>
+      <pre><code><span class="kw">import</span> { <span class="fn">connect</span> } <span class="kw">from</span> <span class="str">'x402-connect'</span><span class="op">;</span>
+
+<span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
+  <span class="prop">payment</span><span class="op">:</span> {
+    <span class="prop">chain</span><span class="op">:</span> <span class="str">'base'</span><span class="op">,</span>
+    <span class="prop">walletKey</span><span class="op">:</span> process<span class="op">.</span>env<span class="op">.</span>EVM_PRIVATE_KEY<span class="op">,</span>
+    <span class="prop">days</span><span class="op">:</span> <span class="num">30</span><span class="op">,</span>
+  }<span class="op">,</span>
+  <span class="prop">country</span><span class="op">:</span> <span class="str">'US'</span><span class="op">,</span>  <span class="cm">// optional</span>
+})<span class="op">;</span>
+
+console<span class="op">.</span><span class="fn">log</span>(vpn<span class="op">.</span>connected)<span class="op">;</span>   <span class="cm">// true</span>
+console<span class="op">.</span><span class="fn">log</span>(vpn<span class="op">.</span>ip)<span class="op">;</span>          <span class="cm">// '45.152.243.12'</span>
+console<span class="op">.</span><span class="fn">log</span>(vpn<span class="op">.</span>expiresAt)<span class="op">;</span>   <span class="cm">// '2026-05-12T...'</span>
+
+<span class="cm">// Save this — needed to reconnect without paying again</span>
+console<span class="op">.</span><span class="fn">log</span>(vpn<span class="op">.</span>sentinelMnemonic)<span class="op">;</span></code></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="label">Connect on Solana</div>
+      </div>
+      <pre><code><span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
+  <span class="prop">payment</span><span class="op">:</span> {
+    <span class="prop">chain</span><span class="op">:</span> <span class="str">'solana'</span><span class="op">,</span>
+    <span class="prop">walletKey</span><span class="op">:</span> process<span class="op">.</span>env<span class="op">.</span>SOLANA_SECRET_KEY<span class="op">,</span>
+    <span class="prop">days</span><span class="op">:</span> <span class="num">7</span><span class="op">,</span>
+  }<span class="op">,</span>
+})<span class="op">;</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── Security ─── -->
+<section id="security">
+  <div class="container">
+    <div class="section-label">Security</div>
+    <h2>Trust nothing. Verify everything.</h2>
+    <p class="desc">The protocol is designed so that trust is unnecessary. Your keys, your tunnel, your traffic.</p>
+
+    <div class="security-grid">
+      <div class="security-item">
+        <h4>Agent controls the session</h4>
+        <p>Agent's Sentinel private key signs MsgStartSession. Only the agent can start, extend, or end its VPN session.</p>
+      </div>
+      <div class="security-item">
+        <h4>Tunnel is direct</h4>
+        <p>WireGuard/V2Ray handshake is agent-to-node. We never see the tunnel credentials, the encryption keys, or the traffic.</p>
+      </div>
+      <div class="security-item">
+        <h4>Payment is on-chain</h4>
+        <p>USDC payment on Base or Solana. Fully auditable. No invoices, no billing systems, no chargebacks.</p>
+      </div>
+      <div class="security-item">
+        <h4>No lock-in</h4>
+        <p>Agent's Sentinel key works with any operator, any plan, any node. Leave anytime. Use the same key with a different provider.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── Chains ─── -->
+<section id="chains">
+  <div class="container">
+    <div class="section-label">Supported Chains</div>
+    <h2>Pay where you are</h2>
+    <p class="desc">Agent pays on whichever chain it already uses. We handle everything else.</p>
+
+    <div class="contract-box">
+      <div>
+        <div class="contract-label">Payment Contract &middot; Base Mainnet</div>
+        <div class="contract-addr">0x923F41eb162d4F7D274CE8cE8b8178883E7E2196</div>
+      </div>
+      <button class="copy-btn" onclick="navigator.clipboard.writeText('0x923F41eb162d4F7D274CE8cE8b8178883E7E2196').then(()=>this.textContent='Copied').catch(()=>{})">Copy</button>
+    </div>
+
+    <div class="chain-cards">
+      <div class="chain-card">
+        <div class="chain-name">Base</div>
+        <div class="chain-sub">EVM L2 &middot; Smart Contract</div>
+        <div class="chain-stat"><span class="label">Payment method</span><span class="val">USDC via contract</span></div>
+        <div class="chain-stat"><span class="label">Finality</span><span class="val">~2 seconds</span></div>
+        <div class="chain-stat"><span class="label">Agent gas cost</span><span class="val">~$0.003</span></div>
+        <div class="chain-stat"><span class="label">Status</span><span class="val" style="color: var(--green);">Live</span></div>
+      </div>
+      <div class="chain-card">
+        <div class="chain-name">Solana</div>
+        <div class="chain-sub">SPL Transfer + Memo</div>
+        <div class="chain-stat"><span class="label">Payment method</span><span class="val">USDC transfer + memo</span></div>
+        <div class="chain-stat"><span class="label">Finality</span><span class="val">~400ms</span></div>
+        <div class="chain-stat"><span class="label">Agent gas cost</span><span class="val">~$0.001</span></div>
+        <div class="chain-stat"><span class="label">Status</span><span class="val" style="color: var(--orange);">Coming soon</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── API ─── -->
+<section id="api">
+  <div class="container">
+    <div class="section-label">API Reference</div>
+    <h2>Endpoints</h2>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="label">Registration</div>
+      </div>
+      <pre><code><span class="fn">POST</span> /api/register
+<span class="cm">Body:</span> { <span class="str">"sentinelAddr"</span>: <span class="str">"sent1..."</span> }
+<span class="cm">Returns:</span> { <span class="str">"agentId"</span>: <span class="str">"uuid"</span>, <span class="str">"sentinelAddr"</span>: <span class="str">"sent1..."</span> }</code></pre>
+    </div>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="label">Check Payment Status</div>
+      </div>
+      <pre><code><span class="fn">GET</span> /api/payment/:txHash
+<span class="cm">Returns:</span> { <span class="str">"status"</span>: <span class="str">"allocated"</span>, <span class="str">"sentinelTxHash"</span>: <span class="str">"..."</span> }</code></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="label">Pricing</div>
+      </div>
+      <pre><code><span class="fn">GET</span> /api/pricing
+<span class="cm">Returns:</span> { <span class="str">"pricePerDayUsdc"</span>: <span class="str">"0.033333"</span>, <span class="str">"minDays"</span>: <span class="num">1</span>, <span class="str">"maxDays"</span>: <span class="num">365</span> }</code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Footer ─── -->
+<footer>
+  <div class="footer-links">
+    <a href="https://github.com/Sentinel-Autonomybuilder/x402" target="_blank">GitHub</a>
+    <a href="https://www.npmjs.com/package/x402-connect" target="_blank">npm</a>
+    <a href="https://sentinel.co" target="_blank">Sentinel Network</a>
+  </div>
+  <p>x402 &mdash; HTTP 402 was always meant for payments. Built on <a href="https://sentinel.co" target="_blank">Sentinel</a>.</p>
+</footer>
+
+</body>
+</html>
