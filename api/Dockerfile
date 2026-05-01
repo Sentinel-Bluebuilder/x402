@@ -21,10 +21,16 @@ RUN npm ci --omit=dev
 # Pin SDK_REF to a commit SHA or tag for reproducible builds.
 FROM node:22-alpine AS sdk
 RUN apk add --no-cache git
-ARG SDK_REF=main
-RUN git clone --depth 1 --branch ${SDK_REF} \
-      https://github.com/Sentinel-Bluebuilder/blue-js-sdk.git \
-      "/Sentinel SDK/js-sdk"
+ARG SDK_REF=
+RUN if [ -n "$SDK_REF" ]; then \
+      git clone --depth 1 --branch "$SDK_REF" \
+        https://github.com/Sentinel-Bluebuilder/blue-js-sdk.git \
+        "/Sentinel SDK/js-sdk"; \
+    else \
+      git clone --depth 1 \
+        https://github.com/Sentinel-Bluebuilder/blue-js-sdk.git \
+        "/Sentinel SDK/js-sdk"; \
+    fi
 WORKDIR "/Sentinel SDK/js-sdk"
 RUN if [ -f package-lock.json ]; then npm ci --omit=dev; \
     else npm install --omit=dev; fi
