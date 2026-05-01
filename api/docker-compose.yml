@@ -1,0 +1,12 @@
+services:
+  backend:
+    image: ghcr.io/sentinel-bluebuilder/x402:latest
+    container_name: x402
+    restart: unless-stopped
+    pull_policy: always
+    env_file:
+      - .env
+    ports:
+      - "3402:3402"
+    volumes:
+      - ./data:/data
