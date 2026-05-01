@@ -6,7 +6,8 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
-RUN npm run build
+RUN npm run build \
+ && cp src/db/schema.sql dist/db/schema.sql
 
 FROM node:22-alpine AS deps
 WORKDIR /app
