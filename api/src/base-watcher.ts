@@ -169,6 +169,7 @@ async function catchUpMissedEvents(
   operator: SentinelOperator | null,
 ): Promise<void> {
   const LOOKBACK_BLOCKS = 1000;
+  const CHUNK_SIZE = 10; // Alchemy free tier caps eth_getLogs at 10 blocks
 
   try {
     const provider = contract.runner?.provider;
@@ -180,18 +181,22 @@ async function catchUpMissedEvents(
     console.log(`[x402] Scanning blocks ${fromBlock}–${currentBlock} for missed events...`);
 
     const filter = contract.filters.VpnPayment();
-    const events = await contract.queryFilter(filter, fromBlock, currentBlock);
-
     let processed = 0;
-    for (const event of events) {
-      if (!('args' in event)) continue;
-      const log = event as ethers.EventLog;
-      const [_sender, agentId, numDays, amount] = log.args;
 
-      if (db.getPaymentByTxHash(log.transactionHash)) continue;
+    for (let start = fromBlock; start <= currentBlock; start += CHUNK_SIZE) {
+      const end = Math.min(start + CHUNK_SIZE - 1, currentBlock);
+      const events = await contract.queryFilter(filter, start, end);
 
-      await processPaymentEvent(agentId, Number(numDays), amount, log.transactionHash, db, config, operator);
-      processed++;
+      for (const event of events) {
+        if (!('args' in event)) continue;
+        const log = event as ethers.EventLog;
+        const [_sender, agentId, numDays, amount] = log.args;
+
+        if (db.getPaymentByTxHash(log.transactionHash)) continue;
+
+        await processPaymentEvent(agentId, Number(numDays), amount, log.transactionHash, db, config, operator);
+        processed++;
+      }
     }
 
     console.log(`[x402] Catch-up: ${processed > 0 ? `processed ${processed} missed events` : 'no missed events'}`);
