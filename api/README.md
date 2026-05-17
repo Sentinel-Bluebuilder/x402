@@ -1,71 +1,24 @@
-# x402 API
+# x402 API — DEPRECATED
 
-Backend service that bridges USDC payments on Base/Solana to Sentinel VPN allocations.
+> **This directory is deprecated and no longer used.**
+>
+> Earlier iterations of x402 used a custom Solidity payment contract (`contracts/base/BlueVpnPayment.sol`) plus this event-watcher relayer to bridge on-chain payments to Sentinel allocations. That design has been replaced by the HTTP 402 + EIP-3009 flow in `server/`, which uses native USDC `transferWithAuthorization` (no custom contract, no event watcher, no SQLite database).
+>
+> **Live implementation:** `server/` — see `server/README.md`.
+>
+> The contents below are kept only as historical reference. Do not run, deploy, or build against this code.
 
-## What It Does
+---
 
-1. **Registers agents** — maps agentId to Sentinel address
-2. **Watches Base** for `VpnPayment` events from our contract
-3. **Watches Solana** for USDC transfers with x402 memo (via Helius webhooks)
-4. **Provisions on Sentinel** — MsgShareSubscription + MsgGrantAllowance in one atomic TX
-5. **Manages subscription pool** — handles the 8-allocation-per-subscription limit
-6. **Retries failed provisioning** — exponential backoff ensures agents get what they paid for
+## Historical Reference
 
-## Endpoints
+What this service used to do:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/register` | Register agent, get agentId |
-| GET | `/api/agent/:agentId` | Agent details + payment history |
-| GET | `/api/payment/:txHash` | Payment status (received/verified/allocated/failed) |
-| GET | `/api/pricing` | Current pricing info |
-| GET | `/api/health` | Pool stats, retry queue, uptime |
-| POST | `/webhook/helius` | Solana payment webhook (Helius) |
+1. Registered agents — mapped agentId to Sentinel address
+2. Watched Base for `VpnPayment` events from `BlueVpnPayment.sol`
+3. Watched Solana for USDC transfers with x402 memo (via Helius webhooks)
+4. Provisioned on Sentinel — MsgShareSubscription + MsgGrantAllowance in one atomic TX
+5. Managed subscription pool — handled the 8-allocation-per-subscription limit
+6. Retried failed provisioning — exponential backoff
 
-## Setup
-
-```bash
-cp .env.example .env
-# Edit .env with your keys
-npm install
-npm run dev
-```
-
-## Database
-
-SQLite via sql.js (WASM — no native compilation needed). Tables:
-
-- `agents` — agentId <-> sentinel_address mapping
-- `payments` — every USDC payment with status tracking
-- `subscription_pool` — operator's Sentinel subscriptions (8 alloc limit)
-- `retry_queue` — exponential backoff for failed Sentinel TXs
-
-Data stored in `./data/x402.db`, created automatically on first run.
-
-## Registration Flow
-
-```
-POST /api/register
-Body: { "sentinelAddr": "sent1..." }
-Response: { "agentId": "uuid", "sentinelAddr": "sent1..." }
-```
-
-- Validates bech32 `sent1...` format
-- Idempotent — same address returns same agentId
-- agentId is used in payment contract calls (not the sentinel address)
-
-## Payment Processing
-
-### Base (EVM)
-Backend watches `VpnPayment` events via ethers WebSocket. On event:
-1. Dedup by tx_hash
-2. Resolve agentId -> sentinel_address
-3. Verify amount matches pricing
-4. Provision on Sentinel (share subscription + fee grant)
-
-### Solana
-Helius webhook delivers enhanced transactions. On webhook:
-1. Verify auth header
-2. Parse memo: `x402:<agentId>:hours:<N>`
-3. Verify USDC transfer to our ATA
-4. Same provisioning flow as Base
+The current `server/` implementation does steps 4–6 directly from the HTTP 402 payment handler, with no event watching, no agentId registration, no SQLite, and no payment contract.

@@ -1,19 +1,29 @@
 # x402
 
-**AI agents pay USDC on Base and Solana for private internet access through Sentinel's decentralized VPN network.**
+**AI agents pay USDC on Base for private internet access through Sentinel's decentralized VPN network.**
 
-One function call. No KYC. No accounts. No P2P tokens. Agent pays USDC, connects to VPN, is private.
+One HTTP request. No KYC. No accounts. No P2P tokens. No custom contract to deploy. The agent signs an EIP-3009 USDC transfer, our facilitator settles it on Base, the server provisions a Sentinel subscription with a gas fee grant, and the agent connects to the VPN — paying zero gas.
 
 ```typescript
-import { connect } from 'x402-connect';
+import { x402Client, wrapFetchWithPayment } from '@x402/fetch';
+import { ExactEvmScheme } from '@x402/evm/exact/client';
+import { createWallet, connect } from 'blue-agent-connect';
 
-const vpn = await connect({
-  payment: { chain: 'base', walletKey: process.env.EVM_KEY, hours: 720 },
+const wallet = await createWallet();
+
+const scheme = new ExactEvmScheme({ address, signTypedData });
+const client = new x402Client();
+client.register('eip155:8453', scheme);
+const paidFetch = wrapFetchWithPayment(fetch, client);
+
+const res = await paidFetch('https://x402.blue/vpn/connect/30days', {
+  method: 'POST',
+  body: JSON.stringify({ sentinelAddr: wallet.address }),
 });
 
-// vpn.connected = true
-// vpn.ip = '45.152.243.12'
-// vpn.country = 'Germany'
+const { subscriptionId, feeGranter, nodeAddress } = await res.json();
+const vpn = await connect({ mnemonic: wallet.mnemonic, subscriptionId, feeGranter, nodeAddress });
+// vpn.connected === true — agent's IP is now a Sentinel node, zero gas paid
 ```
 
 ---
@@ -21,142 +31,219 @@ const vpn = await connect({
 ## How It Works
 
 ```
-Agent                           x402 Backend                    Sentinel Chain
-─────                           ────────────                    ──────────────
+Agent                          x402 Server                    Sentinel Chain
+─────                          ───────────                    ──────────────
 
-1. POST /register               Stores agentId <-> sent1...
-   { sentinelAddr }             Returns agentId
+1. POST /vpn/connect/30days    Returns HTTP 402 +
+   { sentinelAddr }            PAYMENT-REQUIRED header
+                  │            (amount, asset, payTo, network)
                   │
-2. contract.pay(agentId, hrs)   USDC -> our wallet
-   on Base (or SPL+memo on Sol) Event emitted
-                  │                     │
-                  │              3. Sees event
-                  │                 Resolves agentId -> sent1...
-                  │                 MsgShareSubscription ──────> Agent added to plan
-                  │                 MsgGrantAllowance ─────────> Agent pays 0 gas
+2. @x402/fetch reads 402,      Facilitator verifies + settles
+   signs EIP-3009              USDC transfer on Base (~2s)
+   transferWithAuthorization
+                  │                    │
+3. Resends with                ──────────────────────────────> MsgShareSubscription
+   PAYMENT-SIGNATURE           Server then sends one atomic    + MsgGrantAllowance
+                  │            Sentinel TX:                    (fee grant for agent)
                   │
-4. connect()                    Fee granted
-   via blue-agent-connect          ──────────────────────────────> MsgStartSession
+4. 200 OK with provisioning    Returns subscriptionId,
+   credentials                 feeGranter, nodeAddress, nodes[]
                   │
-5. Handshake directly with VPN node (we never see this)
+5. connect({ mnemonic,         ─────────────────────────────> MsgStartSession
+   subscriptionId, feeGranter,                                (gas paid by operator)
+   nodeAddress })
                   │
-6. VPN tunnel up. Agent is private.
+6. Handshake directly with VPN node (WireGuard/V2Ray). We never see the tunnel.
+                  │
+7. VPN tunnel up. Agent is private.
 ```
+
+**Key property:** USDC payment uses native EIP-3009 `transferWithAuthorization` — no custom contract to deploy, no `approve()` step, no token-allowance round-trip. The asset address in every payment is the canonical USDC contract on Base: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`.
 
 ## Architecture
 
 ```
 x402/
-├── api/              — Our backend (Express, port 3402)
-│   ├── Registration  — POST /register -> agentId
-│   ├── Base Watcher  — Watches VpnPayment events on Base
-│   ├── Sol Watcher   — Helius webhook for Solana USDC transfers
-│   ├── Sentinel TX   — MsgShareSubscription + MsgGrantAllowance
-│   ├── Pool Manager  — Handles 8-allocation subscription limit
-│   └── Retry Queue   — Exponential backoff for failed Sentinel TXs
+├── server/              — x402 HTTP 402 VPN server (the one you run)
+│   └── src/
+│       ├── index.ts          — Express routes + x402 paymentMiddleware
+│       ├── facilitator.ts    — Self-hosted EIP-3009 facilitator
+│       └── sentinel.ts       — MsgShareSubscription + MsgGrantAllowance
 │
-├── contracts/base/   — Solidity payment contract (Base L2)
-│   └── BlueVpnPayment.sol  — pay(agentId, hours) -> USDC + event
+├── client/              — Reference agent client (@x402/fetch wrapper)
 │
-└── sdk/              — What agents install (x402-connect)
-    ├── connect()     — One-liner: register -> pay -> poll -> VPN
-    ├── Base payment  — Contract interaction via ethers
-    └── Solana payment — SPL transfer + memo (no custom program)
+├── docs/                — Public site (docs/index.html)
+│
+└── fresh-test/          — End-to-end tests against a live server
 ```
 
-## Packages
-
-| Package | Description | Status |
-|---------|-------------|--------|
-| `x402/api` | Backend service — registration, event watching, Sentinel provisioning | Built, tested |
-| `x402/contracts/base` | Solidity payment contract for Base L2 | Built, 15/15 tests |
-| `x402/sdk` | Agent-facing SDK — `connect()`, `disconnect()`, `status()` | Built, compiles |
+> **Note — `contracts/` and `api/`:** Earlier iterations of this project included a custom Solidity payment contract (`BlueVpnPayment.sol`) plus an event-watcher relayer in `api/`. That flow is **deprecated** in favor of the HTTP 402 + EIP-3009 design. The contract directory and `api/` watcher remain in the repo as historical reference only — do not deploy or run them. All current development happens in `server/`.
 
 ## Chains
 
 | Chain | Payment Method | Status |
-|-------|---------------|--------|
-| **Base** | Smart contract (`BlueVpnPayment.sol`) | Ready to deploy |
-| **Solana** | SPL USDC transfer + memo (no contract needed) | Code written |
+|-------|----------------|--------|
+| **Base** | Native USDC + EIP-3009 `transferWithAuthorization` (no custom contract) | **Live on mainnet** |
+| **Solana** | SPL USDC transfer + memo (Helius webhook) | Code written, not yet enabled |
+
+## Pricing
+
+| Endpoint | Days | Price |
+|---|---|---|
+| `POST /vpn/connect/1day` | 1 | $0.033 USDC |
+| `POST /vpn/connect/7days` | 7 | $0.233 USDC |
+| `POST /vpn/connect/30days` | 30 | $1.00 USDC |
+
+Pricing is configurable per operator — see `server/src/index.ts`.
 
 ## Quick Start
 
-### 1. Deploy Contract (Base)
+### Run your own server
 
 ```bash
-cd contracts/base
+cd server
+cp .env.example .env          # fill in operator details (see below)
 npm install
-DEPLOYER_PRIVATE_KEY=0x... npx hardhat run scripts/deploy.ts --network base
+npx tsc
+node dist/index.js
 ```
 
-### 2. Start Backend
+Server starts on `http://localhost:4020`. The self-hosted facilitator starts on `:4021`.
+
+You need:
+
+1. **EVM wallet on Base** — receives USDC payments, also funds the facilitator (~0.001 ETH per settlement)
+2. **Sentinel wallet** — holds P2P tokens for chain gas (~0.06 P2P per agent provisioning)
+3. **Sentinel plan** — with leased nodes (your nodes, or rented from operators)
+
+### Connect as an agent
 
 ```bash
-cd api
-cp .env.example .env
-# Fill in: SENTINEL_OPERATOR_MNEMONIC, SENTINEL_PLAN_ID, PAYMENT_CONTRACT_ADDRESS
-npm install
-npm run dev
+npm install @x402/fetch @x402/evm blue-agent-connect viem
 ```
-
-### 3. Agent Connects
 
 ```typescript
-import { connect } from 'x402-connect';
+import { x402Client, wrapFetchWithPayment } from '@x402/fetch';
+import { ExactEvmScheme } from '@x402/evm/exact/client';
+import { createWalletClient, http } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { base } from 'viem/chains';
+import { createWallet, connect, disconnect } from 'blue-agent-connect';
 
-const vpn = await connect({
-  payment: {
-    chain: 'base',        // or 'solana'
-    walletKey: '0x...',   // EVM private key (or Solana secret key for 'solana')
-    hours: 720,           // 30 days
-  },
-  country: 'US',          // optional: preferred country
+// 1. Sentinel wallet (one-time — persist the mnemonic)
+const wallet = await createWallet();
+
+// 2. x402 payment client backed by an EVM key with USDC on Base
+const account = privateKeyToAccount(process.env.EVM_KEY);
+const viemClient = createWalletClient({
+  account, chain: base, transport: http('https://mainnet.base.org'),
 });
+const scheme = new ExactEvmScheme({
+  address: account.address,
+  signTypedData: (msg) => viemClient.signTypedData(msg),
+});
+const client = new x402Client();
+client.register('eip155:8453', scheme);
+const paidFetch = wrapFetchWithPayment(fetch, client);
+
+// 3. Buy 30 days of VPN — 402 → auto-sign → settle → provision
+const res = await paidFetch('https://x402.blue/vpn/connect/30days', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ sentinelAddr: wallet.address }),
+});
+const provision = await res.json();
+// { subscriptionId, feeGranter, nodeAddress, nodes, expiresAt, ... }
+
+// 4. Connect — agent pays zero gas, operator fee-grants the session
+const vpn = await connect({
+  mnemonic: wallet.mnemonic,
+  nodeAddress: provision.nodeAddress,
+  subscriptionId: String(provision.subscriptionId),
+  feeGranter: provision.feeGranter,
+});
+
+console.log(`VPN up: ${vpn.ip} via ${vpn.protocol}`);
+
+await disconnect();
 ```
+
+## Endpoints
+
+### Payment-protected (HTTP 402)
+
+| Method | Path | Price | Body |
+|---|---|---|---|
+| POST | `/vpn/connect/1day` | $0.033 | `{ sentinelAddr }` |
+| POST | `/vpn/connect/7days` | $0.233 | `{ sentinelAddr }` |
+| POST | `/vpn/connect/30days` | $1.00 | `{ sentinelAddr }` |
+
+Response after settlement:
+```json
+{
+  "provisioned": true,
+  "subscriptionId": 1192288,
+  "planId": 42,
+  "feeGranter": "sent1...",
+  "nodeAddress": "sentnode1...",
+  "nodes": ["sentnode1a...", "sentnode1b...", "..."],
+  "sentinelTxHash": "...",
+  "expiresAt": "2026-05-14T18:50:48Z"
+}
+```
+
+### Free (no payment)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/pricing` | Tier table, asset, payTo, network |
+| GET | `/nodes` | Nodes in the operator's plan |
+| GET | `/health` | Server uptime |
+| GET | `/agent/:sentinelAddr` | Agent's subscription + fee-grant status |
 
 ## Security
 
 | Property | Guarantee |
-|----------|-----------|
-| Agent controls its session | Agent's Sentinel key signs MsgStartSession |
-| Tunnel credentials stay with agent | Handshake is agent-to-node, signed by agent's key |
-| We never see traffic | WireGuard/V2Ray is end-to-end encrypted |
-| We never see credentials | We only add allocation + fee grant |
-| Payment is verifiable | On-chain on Base/Solana — anyone can audit |
-| No lock-in | Agent's Sentinel key works with any operator |
+|---|---|
+| Agent controls its session | Agent's Sentinel mnemonic signs MsgStartSession locally |
+| Tunnel credentials stay with agent | WireGuard/V2Ray handshake is agent ↔ node |
+| EVM key never leaves the agent | EIP-3009 signature created locally; facilitator only sees the signature |
+| Self-hosted facilitator | No Coinbase, no third party in the payment path |
+| Payment is verifiable | Every USDC settlement is a public Base transaction |
+| No agent PII | Operator stores `sentinelAddr` only — no IPs, no traffic, no logs |
 
-## Costs
+## Costs (operator side)
 
-| Item | Cost |
-|------|------|
-| Deploy contract (Base) | ~$0.50 |
-| Each agent payment TX (Base) | ~$0.01 |
-| Solana payment TX | ~$0.001 |
-| VPS for backend | $5-10/month |
-| Sentinel gas per agent | ~$0.0001 |
+| Item | Approx. cost |
+|---|---|
+| EIP-3009 settlement on Base | ~$0.001 ETH |
+| Sentinel provisioning TX (per agent) | ~$0.0001 in P2P |
+| VPS for the server | $5–10/month |
 
-## Environment Variables
+## Environment Variables (`server/.env`)
 
 ```
-# Base
-PAYMENT_CONTRACT_ADDRESS=       # After deployment
-BASE_RPC_URL=https://mainnet.base.org
-BASE_WS_URL=wss://mainnet.base.org
+# ─── Base / payments ───
+OPERATOR_ADDRESS=0x...                       # Receives USDC payments
+BASE_NETWORK=eip155:8453                     # Or eip155:84532 for Sepolia
 
-# Sentinel
-SENTINEL_OPERATOR_MNEMONIC=     # NEVER commit
-SENTINEL_PLAN_ID=
+# ─── Facilitator (pick ONE) ───
+FACILITATOR_PRIVATE_KEY=0x...                # Self-hosted, needs ETH on Base
+FACILITATOR_PORT=4021
+# CDP_API_KEY_ID=                            # Or use Coinbase CDP
+# CDP_API_KEY_SECRET=
+
+# ─── Sentinel ───
+SENTINEL_OPERATOR_MNEMONIC=word1 word2 ...   # 12-word mnemonic, holds P2P
+SENTINEL_PLAN_ID=42                          # Plan with leased nodes
 SENTINEL_RPC_URL=https://rpc.sentinel.co:443
+SENTINEL_LCD_URL=https://lcd.sentinel.co
 
-# Solana (optional)
-HELIUS_API_KEY=
-HELIUS_WEBHOOK_SECRET=
-OPERATOR_USDC_ATA=
-
-# API
-PORT=3402
-PRICE_PER_HOUR_USDC=10000      # 0.01 USDC per hour
+# ─── Server ───
+PORT=4020
 ```
+
+See `server/.env.example` for the full template.
 
 ## License
 

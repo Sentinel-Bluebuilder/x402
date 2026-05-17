@@ -1,124 +1,51 @@
-# x402-connect
+# x402-connect — DEPRECATED
 
-AI agents pay USDC on Base or Solana for private VPN access through Sentinel's decentralized node network.
+> **This package is deprecated and was never published.**
+>
+> The agent-facing flow it described (custom payment contract + agentId registration + polling API for allocation) has been replaced by the HTTP 402 + EIP-3009 flow.
+>
+> **Use these instead:**
+>
+> - **`@x402/fetch`** — wraps `fetch` to auto-sign EIP-3009 USDC transfers when a server returns HTTP 402
+> - **`blue-agent-connect`** — establishes the actual Sentinel VPN tunnel (WireGuard / V2Ray) once the server has provisioned the subscription + fee grant
+>
+> See the root `README.md` for the current agent example, and `server/README.md` for the server side.
+>
+> The contents of this directory remain only as historical reference. Do not install, build, or publish.
 
-## Install
+---
 
-```bash
-npm install x402-connect
-```
+## What replaced it
 
-## Usage
-
-### Connect (Base)
+Old (this directory):
 
 ```typescript
 import { connect } from 'x402-connect';
 
 const vpn = await connect({
-  payment: {
-    chain: 'base',
-    walletKey: process.env.EVM_PRIVATE_KEY,
-    hours: 720, // 30 days
-  },
-  country: 'US', // optional
-});
-
-console.log(vpn.connected);  // true
-console.log(vpn.ip);         // '45.152.243.12'
-console.log(vpn.country);    // 'United States'
-console.log(vpn.expiresAt);  // '2026-05-12T...'
-```
-
-### Connect (Solana)
-
-```typescript
-const vpn = await connect({
-  payment: {
-    chain: 'solana',
-    walletKey: process.env.SOLANA_SECRET_KEY, // JSON array format
-    hours: 720,
-  },
+  payment: { chain: 'base', walletKey: process.env.EVM_KEY, hours: 720 },
 });
 ```
 
-### Disconnect
+New (live):
 
 ```typescript
-import { disconnect } from 'x402-connect';
+import { x402Client, wrapFetchWithPayment } from '@x402/fetch';
+import { ExactEvmScheme } from '@x402/evm/exact/client';
+import { createWallet, connect } from 'blue-agent-connect';
 
-await disconnect();
+const wallet = await createWallet();
+const scheme = new ExactEvmScheme({ address, signTypedData });
+const client = new x402Client();
+client.register('eip155:8453', scheme);
+const paidFetch = wrapFetchWithPayment(fetch, client);
+
+const res = await paidFetch('https://x402.blue/vpn/connect/30days', {
+  method: 'POST',
+  body: JSON.stringify({ sentinelAddr: wallet.address }),
+});
+const { subscriptionId, feeGranter, nodeAddress } = await res.json();
+const vpn = await connect({ mnemonic: wallet.mnemonic, subscriptionId, feeGranter, nodeAddress });
 ```
 
-### Check Status
-
-```typescript
-import { status } from 'x402-connect';
-
-const s = await status();
-console.log(s.connected); // true or false
-```
-
-### Get Pricing
-
-```typescript
-import { getPricing } from 'x402-connect';
-
-const pricing = await getPricing();
-// { pricePerHourUsdc: '0.010000', minHours: 1, maxHours: 8760, chains: ['base', 'solana'] }
-```
-
-## What Happens Behind the Scenes
-
-1. **Wallet** — Creates a Sentinel wallet (or loads your existing one)
-2. **Register** — Registers your Sentinel address with our API, gets an agentId
-3. **Pay** — Calls the payment contract on Base (or SPL transfer on Solana)
-4. **Wait** — Polls our API until Sentinel allocation is confirmed
-5. **Connect** — Establishes VPN tunnel directly with a decentralized node
-
-Your Sentinel private key never leaves your machine. The tunnel is end-to-end encrypted between you and the node. We never see your traffic.
-
-## Environment Variables
-
-```
-# Required for Base
-X402_CONTRACT_ADDRESS=          # Payment contract on Base
-
-# Required for Solana
-X402_OPERATOR_USDC_ATA=         # Our USDC ATA on Solana
-
-# Optional
-X402_API_URL=http://localhost:3402  # Override API URL
-```
-
-## API
-
-### `connect(opts): Promise<ConnectResult>`
-
-| Option | Type | Required | Description |
-|--------|------|----------|-------------|
-| `payment.chain` | `'base' \| 'solana'` | Yes | Which chain to pay on |
-| `payment.walletKey` | `string` | Yes | Private key (hex for Base, JSON array for Solana) |
-| `payment.hours` | `number` | Yes | Hours of VPN access (1-8760) |
-| `country` | `string` | No | Preferred country code |
-| `sentinelMnemonic` | `string` | No | Reuse existing Sentinel wallet |
-| `apiUrl` | `string` | No | Override API URL |
-| `onProgress` | `function` | No | Progress callback: `(step, detail) => void` |
-
-### `ConnectResult`
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `connected` | `boolean` | Whether VPN is active |
-| `ip` | `string` | Your VPN IP address |
-| `country` | `string` | Node country |
-| `expiresAt` | `string` | ISO timestamp when access expires |
-| `protocol` | `string` | `'wireguard'` or `'v2ray'` |
-| `sessionId` | `string` | Sentinel session ID |
-| `agentId` | `string` | Your agent registration ID |
-| `sentinelAddress` | `string` | Your Sentinel address |
-| `paymentTxHash` | `string` | Payment transaction hash |
-
-## License
-
-MIT
+No payment contract. No agentId. No polling. The server settles the EIP-3009 USDC transfer, provisions Sentinel atomically, and returns the credentials in the HTTP 200 response.
