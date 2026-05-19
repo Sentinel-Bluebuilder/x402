@@ -155,12 +155,16 @@ nav .logo {
 }
 
 nav .logo .brand-mark {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 0 6px rgba(30, 136, 229, 0.45));
+  background: #02060a;
+  border: 1px solid var(--border-bright);
+  border-radius: 6px;
+  padding: 3px;
+  box-shadow: 0 0 8px var(--accent-glow), inset 0 0 0 1px rgba(0,0,0,0.6);
 }
 
 nav .logo .brand-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
@@ -1103,7 +1107,9 @@ section h3 {
 <section class="hero">
   <div class="container">
     <div class="protocol-badge fade-in">
-      <img src="assets/sentinel-shield.png" alt="" style="width:16px;height:16px;object-fit:contain;display:inline-block;vertical-align:middle;filter:drop-shadow(0 0 4px rgba(30,136,229,0.5));">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:#02060a;border:1px solid var(--border-bright);border-radius:5px;padding:2px;box-shadow:0 0 6px var(--accent-glow);">
+        <img src="assets/sentinel-shield.png" alt="" style="width:100%;height:100%;object-fit:contain;display:block;">
+      </span>
       Live on Base Mainnet &middot; Sentinel dVPN
     </div>
     <h1 class="fade-in">Private internet<br>for <span class="highlight">AI agents</span><span class="caret"></span></h1>
