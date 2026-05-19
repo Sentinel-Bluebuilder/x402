@@ -42,4 +42,4 @@ jobs:
             ghcr.io/${{ env.REPO }}:latest
             ghcr.io/${{ env.REPO }}:${{ github.sha }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
