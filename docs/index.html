@@ -160,11 +160,17 @@ nav .logo .brand-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-bright);
-  filter: drop-shadow(0 0 6px var(--accent-glow));
 }
 
-nav .logo .brand-mark svg { width: 100%; height: 100%; display: block; }
+nav .logo .brand-mark img,
+.brand-mark.shield-png {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Real Sentinel shield PNG is solid blue on white — convert to phosphor green.
+     brightness(0) -> pure black silhouette, then invert + hue-rotate to green. */
+  filter: brightness(0) saturate(100%) invert(78%) sepia(70%) saturate(2200%) hue-rotate(85deg) brightness(105%) contrast(105%) drop-shadow(0 0 4px var(--accent-glow));
+}
 
 nav .logo span { color: var(--accent); text-shadow: 0 0 14px rgba(0, 255, 102, 0.55); }
 
@@ -1087,13 +1093,7 @@ section h3 {
 <nav>
   <div class="inner">
     <div class="logo">
-      <span class="brand-mark" aria-label="Sentinel">
-        <svg viewBox="0 0 64 64" aria-hidden="true">
-          <path d="M32 4 8 12v22c0 12.5 9.6 23 24 26 14.4-3 24-13.5 24-26V12L32 4Z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
-          <path d="M32 12 16 17v17c0 9 7 17 16 20 9-3 16-11 16-20V17L32 12Z" fill="currentColor" opacity="0.18"/>
-          <path d="M20 22 44 46" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/>
-        </svg>
-      </span>
+      <span class="brand-mark"><img src="assets/sentinel-shield.png" alt="Sentinel"></span>
       <span>x</span>402
     </div>
     <div class="links">
@@ -1110,12 +1110,7 @@ section h3 {
 <section class="hero">
   <div class="container">
     <div class="protocol-badge fade-in">
-      <span class="brand-mark" aria-hidden="true" style="width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;color:var(--accent-bright);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M12 2 4 5v7c0 4.5 3.3 8.4 8 10 4.7-1.6 8-5.5 8-10V5l-8-3Z" fill="rgba(0,255,102,0.10)"/>
-          <path d="M8.5 8.5 15.5 15.5" />
-        </svg>
-      </span>
+      <img src="assets/sentinel-shield.png" alt="" class="brand-mark shield-png" style="width:14px;height:14px;">
       Live on Base Mainnet &middot; Sentinel dVPN
     </div>
     <h1 class="fade-in">Private internet<br>for <span class="highlight">AI agents</span><span class="caret"></span></h1>
