@@ -2,6 +2,8 @@
 
 **AI agents pay USDC on Base for private internet access through Sentinel's decentralized VPN network.**
 
+Live at **[x402.sentinel.co](https://x402.sentinel.co)**.
+
 One HTTP request. No KYC. No accounts. No P2P tokens. No custom contract to deploy. The agent signs an EIP-3009 USDC transfer, our facilitator settles it on Base, the server provisions a Sentinel subscription with a gas fee grant, and the agent connects to the VPN — paying zero gas.
 
 ```typescript
@@ -16,7 +18,7 @@ const client = new x402Client();
 client.register('eip155:8453', scheme);
 const paidFetch = wrapFetchWithPayment(fetch, client);
 
-const res = await paidFetch('https://x402.blue/vpn/connect/30days', {
+const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {
   method: 'POST',
   body: JSON.stringify({ sentinelAddr: wallet.address }),
 });
@@ -77,7 +79,7 @@ x402/
 └── fresh-test/          — End-to-end tests against a live server
 ```
 
-> **Note — `contracts/` and `api/`:** Earlier iterations of this project included a custom Solidity payment contract (`BlueVpnPayment.sol`) plus an event-watcher relayer in `api/`. That flow is **deprecated** in favor of the HTTP 402 + EIP-3009 design. The contract directory and `api/` watcher remain in the repo as historical reference only — do not deploy or run them. All current development happens in `server/`.
+The `api/`, `contracts/`, and `sdk/` directories contain an earlier event-watcher design (custom payment contract + agentId registration + polling). The HTTP 402 + EIP-3009 flow in `server/` is the canonical implementation — it needs no contract, no event watcher, and no database, and auto-creates Sentinel subscriptions on demand. The live deployment at [x402.sentinel.co](https://x402.sentinel.co) runs `server/`.
 
 ## Chains
 
@@ -147,7 +149,7 @@ client.register('eip155:8453', scheme);
 const paidFetch = wrapFetchWithPayment(fetch, client);
 
 // 3. Buy 30 days of VPN — 402 → auto-sign → settle → provision
-const res = await paidFetch('https://x402.blue/vpn/connect/30days', {
+const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ sentinelAddr: wallet.address }),
