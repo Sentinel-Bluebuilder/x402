@@ -79,7 +79,7 @@ x402/
 └── fresh-test/          — End-to-end tests against a live server
 ```
 
-> **⚠️ Deprecated paths — do not use `contracts/` or `api/`.** Earlier iterations included a custom Solidity payment contract (`BlueVpnPayment.sol`) plus an event-watcher relayer in `api/`. That design has been replaced by the HTTP 402 + EIP-3009 flow in `server/`, which needs no contract, no event watcher, no database, and auto-creates Sentinel subscriptions on demand. The deprecated directories are kept only as historical reference. The live deployment at [x402.sentinel.co](https://x402.sentinel.co) runs `server/`.
+The `api/`, `contracts/`, and `sdk/` directories contain an earlier event-watcher design (custom payment contract + agentId registration + polling). The HTTP 402 + EIP-3009 flow in `server/` is the canonical implementation — it needs no contract, no event watcher, and no database, and auto-creates Sentinel subscriptions on demand. The live deployment at [x402.sentinel.co](https://x402.sentinel.co) runs `server/`.
 
 ## Chains
 
