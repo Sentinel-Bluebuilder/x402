@@ -110,10 +110,10 @@ export function startBaseWatcher(
         numDays: bigint,
         amount: bigint,
         _timestamp: bigint,
-        event: ethers.EventLog,
+        event: ethers.ContractEventPayload,
       ) => {
         try {
-          await processPaymentEvent(agentId, Number(numDays), amount, event.transactionHash, db, config, operator);
+          await processPaymentEvent(agentId, Number(numDays), amount, event.log.transactionHash, db, config, operator);
         } catch (err) {
           console.error('[x402] Error processing payment event:', err);
         }

@@ -29,3 +29,4 @@ wallets.env
 
 # Memory (local session state)
 memory/
+.test-wallet.json
