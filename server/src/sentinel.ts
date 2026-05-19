@@ -27,7 +27,9 @@ type BroadcastResult = { code: number; transactionHash: string; rawLog?: string 
 
 // Build MsgShareSubscription manually — the SDK version has a camelCase/snake_case mismatch
 // between buildMsgShareSubscription (outputs acc_address) and encodeMsgShareSubscription
-// (reads accAddress), plus field 4 wire type bug (varint vs string for cosmossdk.io/math.Int).
+// (reads accAddress). Field 4 (bytes) is cosmossdk.io/math.Int and must serialize as a
+// length-prefixed string on the wire; passing a JS number causes the encoder to emit
+// varint and the chain rejects with a wire-type mismatch.
 function buildMsgShareSubscription(opts: {
   from: string; id: number; accAddress: string; bytes: number;
 }): EncodedMsg {
@@ -38,7 +40,7 @@ function buildMsgShareSubscription(opts: {
       id: opts.id,
       accAddress: opts.accAddress,
       acc_address: opts.accAddress,
-      bytes: opts.bytes,
+      bytes: String(opts.bytes),
     },
   };
 }
