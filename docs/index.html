@@ -157,9 +157,14 @@ nav .logo {
 nav .logo .brand-mark {
   width: 22px;
   height: 22px;
-  object-fit: contain;
-  filter: drop-shadow(0 0 6px var(--accent-glow)) brightness(1.05) saturate(0.6) hue-rotate(60deg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-bright);
+  filter: drop-shadow(0 0 6px var(--accent-glow));
 }
+
+nav .logo .brand-mark svg { width: 100%; height: 100%; display: block; }
 
 nav .logo span { color: var(--accent); text-shadow: 0 0 14px rgba(0, 255, 102, 0.55); }
 
@@ -221,6 +226,8 @@ nav .logo span { color: var(--accent); text-shadow: 0 0 14px rgba(0, 255, 102, 0
   align-items: center;
   gap: 10px;
   padding: 8px 14px;
+  height: 38px;
+  line-height: 1;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg-card);
@@ -242,17 +249,32 @@ nav .logo span { color: var(--accent); text-shadow: 0 0 14px rgba(0, 255, 102, 0
 .os-chip.soon { color: var(--amber); border-color: rgba(255, 181, 71, 0.32); }
 .os-chip.soon .os-logo { color: var(--amber); filter: drop-shadow(0 0 6px rgba(255, 181, 71, 0.32)); }
 
+.os-chip .os-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
 .os-chip .os-status {
-  font-size: 10.5px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   opacity: 0.7;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  line-height: 1;
+  position: relative;
+  top: -1px;
 }
 
 .os-chip .os-logo {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
+
+.os-chip .os-logo svg { width: 100%; height: 100%; display: block; }
 
 nav .links { display: flex; gap: 26px; }
 
@@ -1063,7 +1085,15 @@ section h3 {
 <!-- ─── Nav ─── -->
 <nav>
   <div class="inner">
-    <div class="logo"><img src="assets/sentinel-shield.png" alt="Sentinel" class="brand-mark"><span>x</span>402</div>
+    <div class="logo">
+      <span class="brand-mark" aria-label="Sentinel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 2 4 5v7c0 4.5 3.3 8.4 8 10 4.7-1.6 8-5.5 8-10V5l-8-3Z" fill="rgba(0,255,102,0.08)"/>
+          <path d="M8.5 8.5 15.5 15.5" />
+        </svg>
+      </span>
+      <span>x</span>402
+    </div>
     <div class="links">
       <a href="#pricing">pricing</a>
       <a href="#flow">how-it-works</a>
@@ -1078,7 +1108,12 @@ section h3 {
 <section class="hero">
   <div class="container">
     <div class="protocol-badge fade-in">
-      <img src="assets/sentinel-shield.png" alt="" class="brand-mark" style="width:14px;height:14px;margin-right:2px;">
+      <span class="brand-mark" aria-hidden="true" style="width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;color:var(--accent-bright);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M12 2 4 5v7c0 4.5 3.3 8.4 8 10 4.7-1.6 8-5.5 8-10V5l-8-3Z" fill="rgba(0,255,102,0.10)"/>
+          <path d="M8.5 8.5 15.5 15.5" />
+        </svg>
+      </span>
       Live on Base Mainnet &middot; Sentinel dVPN
     </div>
     <h1 class="fade-in">Private internet<br>for <span class="highlight">AI agents</span><span class="caret"></span></h1>
@@ -1087,21 +1122,21 @@ section h3 {
     <div class="os-row fade-in" aria-label="Operating system support">
       <div class="os-chip live" title="Verified on Windows">
         <span class="os-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5 11 4.4v7.1H3V5.5Zm0 13 8 1.1v-7.1H3v6Zm9 1.2 9 1.3V12.5h-9v7.2Zm0-8.2h9V3.4l-9 1.3v6.8Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.7 10.8 4.6v6.9H3V5.7Zm0 12.6L10.8 19.4V12.5H3v5.8Zm8.8 1.2L21 20.8V12.5h-9.2v7Zm0-8h9.2V3.2l-9.2 1.3V11.5Z"/></svg>
         </span>
-        Windows<span class="os-status">live</span>
+        <span class="os-label">Windows <span class="os-status">live</span></span>
       </div>
       <div class="os-chip soon" title="Built but untested">
         <span class="os-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 1.5c.1 1.2-.4 2.4-1.1 3.3-.8.9-2 1.6-3.1 1.5-.2-1.2.4-2.4 1.1-3.2.8-.9 2.1-1.5 3.1-1.6Zm3.9 16.8c-.6 1.3-.9 1.9-1.6 3.1-1 1.7-2.5 3.8-4.3 3.9-1.6 0-2-1-4.2-1-2.1 0-2.6 1-4.2 1-1.8-.1-3.2-2-4.2-3.7-2.7-4.7-3-10.3-1.3-13.3 1.2-2.1 3.1-3.4 4.8-3.4 1.7 0 2.8 1 4.2 1 1.4 0 2.3-1 4.3-1 1.6 0 3.3.9 4.5 2.4-3.9 2.2-3.3 7.9.0 11Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 1.3c.1 1.1-.3 2.2-1 3-.6.8-1.7 1.4-2.7 1.4-.2-1.1.3-2.2.9-2.9.8-.9 2-1.5 2.8-1.5Zm3.6 16.4c-.5 1.2-.8 1.7-1.4 2.8-.9 1.5-2.2 3.4-3.9 3.5-1.5 0-1.8-.9-3.8-.9-1.9 0-2.3.9-3.8.9-1.6-.1-2.9-1.8-3.8-3.3-2.5-4.3-2.7-9.4-1.2-12.1 1.1-1.9 2.8-3.1 4.4-3.1 1.5 0 2.5.9 3.8.9 1.3 0 2.1-.9 3.9-.9 1.4 0 3 .8 4.1 2.2-3.6 2-3 7.2 1.7 10Z"/></svg>
         </span>
-        macOS<span class="os-status">soon</span>
+        <span class="os-label">macOS <span class="os-status">soon</span></span>
       </div>
       <div class="os-chip soon" title="Built but untested">
         <span class="os-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-2 0-3.4 1.7-3.4 4.1 0 1 .2 1.9.5 2.6-.7.5-1.4 1.4-1.9 2.6-.7 1.7-1 4-1.8 5.5-.5 1-1.5 1.5-2.1 2.2-.4.5-.5 1.4.4 1.7.7.2 1.4-.2 2-.6.5-.3.9-.5 1.3-.4.4.1.6.5.6 1 .1 1.4 1.1 2.3 3 2.5 1.9.2 4.1-.4 5.9-.4 1 0 1.8.2 2.4.1.7-.1 1.1-.5 1.1-1 0-.5-.4-.9-.9-1.3-1.2-1-1.5-2.4-1.9-4.2-.4-1.7-.9-3.6-2.4-4.9.4-.8.7-1.8.7-2.9 0-2.4-1.4-4.1-3.5-4.1Zm-1.1 3.5c.4 0 .7.5.7 1.1s-.3 1.1-.7 1.1-.7-.5-.7-1.1.3-1.1.7-1.1Zm2.2 0c.4 0 .7.5.7 1.1s-.3 1.1-.7 1.1-.7-.5-.7-1.1.3-1.1.7-1.1Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 2c-2 0-3.3 1.6-3.3 4 0 1 .2 1.9.4 2.5-.7.5-1.3 1.4-1.8 2.6-.7 1.6-1 3.8-1.7 5.2-.5 1-1.5 1.5-2 2.2-.4.4-.5 1.3.4 1.6.7.2 1.3-.2 1.9-.6.4-.3.9-.4 1.2-.4.4.1.5.5.6 1 .1 1.3 1 2.2 2.9 2.4 1.8.2 4-.4 5.7-.4 1 0 1.7.1 2.3.1.6 0 1-.5 1-1 0-.5-.4-.9-.9-1.3-1.1-1-1.4-2.3-1.8-4-.4-1.6-.9-3.5-2.3-4.7.4-.8.6-1.7.6-2.7 0-2.3-1.3-4-3.2-4Zm-1 3.3c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Zm2.1 0c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Z"/></svg>
         </span>
-        Linux<span class="os-status">soon</span>
+        <span class="os-label">Linux <span class="os-status">soon</span></span>
       </div>
     </div>
 
