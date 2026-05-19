@@ -25,11 +25,10 @@ import * as sdk from 'blue-js-sdk';
 type EncodedMsg = { typeUrl: string; value: unknown };
 type BroadcastResult = { code: number; transactionHash: string; rawLog?: string };
 
-// Build MsgShareSubscription manually — the SDK version has a camelCase/snake_case mismatch
-// between buildMsgShareSubscription (outputs acc_address) and encodeMsgShareSubscription
-// (reads accAddress). Field 4 (bytes) is cosmossdk.io/math.Int and must serialize as a
-// length-prefixed string on the wire; passing a JS number causes the encoder to emit
-// varint and the chain rejects with a wire-type mismatch.
+// Build MsgShareSubscription manually — the SDK exports buildMsgShareSubscription
+// with an acc_address (snake_case) shape while its internal encoder reads accAddress
+// (camelCase). Including both keys keeps the encoder happy regardless of which form
+// it consumes.
 function buildMsgShareSubscription(opts: {
   from: string; id: number; accAddress: string; bytes: number;
 }): EncodedMsg {
@@ -40,7 +39,7 @@ function buildMsgShareSubscription(opts: {
       id: opts.id,
       accAddress: opts.accAddress,
       acc_address: opts.accAddress,
-      bytes: String(opts.bytes),
+      bytes: opts.bytes,
     },
   };
 }
