@@ -160,17 +160,11 @@ nav .logo .brand-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  color: var(--accent-bright);
+  filter: drop-shadow(0 0 5px var(--accent-glow));
 }
 
-nav .logo .brand-mark img,
-.brand-mark.shield-png {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  /* Real Sentinel shield PNG is solid blue on white — convert to phosphor green.
-     brightness(0) -> pure black silhouette, then invert + hue-rotate to green. */
-  filter: brightness(0) saturate(100%) invert(78%) sepia(70%) saturate(2200%) hue-rotate(85deg) brightness(105%) contrast(105%) drop-shadow(0 0 4px var(--accent-glow));
-}
+nav .logo .brand-mark svg { width: 100%; height: 100%; display: block; }
 
 nav .logo span { color: var(--accent); text-shadow: 0 0 14px rgba(0, 255, 102, 0.55); }
 
@@ -1093,7 +1087,22 @@ section h3 {
 <nav>
   <div class="inner">
     <div class="logo">
-      <span class="brand-mark"><img src="assets/sentinel-shield.png" alt="Sentinel"></span>
+      <span class="brand-mark" aria-label="Sentinel">
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <defs>
+            <mask id="shield-slash">
+              <rect width="64" height="64" fill="white"/>
+              <path d="M16 18 L48 50" stroke="black" stroke-width="5" stroke-linecap="butt"/>
+            </mask>
+          </defs>
+          <!-- Outer rounded shield outline -->
+          <path d="M8 8 H56 V32 C56 45 47 54 32 58 C17 54 8 45 8 32 Z"
+                fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+          <!-- Inner filled shield, masked to leave a diagonal negative-space slash -->
+          <path d="M16 14 H48 V32 C48 42 41 49 32 52 C23 49 16 42 16 32 Z"
+                fill="currentColor" mask="url(#shield-slash)"/>
+        </svg>
+      </span>
       <span>x</span>402
     </div>
     <div class="links">
@@ -1110,7 +1119,18 @@ section h3 {
 <section class="hero">
   <div class="container">
     <div class="protocol-badge fade-in">
-      <img src="assets/sentinel-shield.png" alt="" class="brand-mark shield-png" style="width:14px;height:14px;">
+      <span class="brand-mark" aria-hidden="true" style="width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;color:var(--accent-bright);">
+        <svg viewBox="0 0 64 64" style="width:100%;height:100%;display:block;" aria-hidden="true">
+          <defs>
+            <mask id="shield-slash-sm">
+              <rect width="64" height="64" fill="white"/>
+              <path d="M16 18 L48 50" stroke="black" stroke-width="6" stroke-linecap="butt"/>
+            </mask>
+          </defs>
+          <path d="M8 8 H56 V32 C56 45 47 54 32 58 C17 54 8 45 8 32 Z" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/>
+          <path d="M16 14 H48 V32 C48 42 41 49 32 52 C23 49 16 42 16 32 Z" fill="currentColor" mask="url(#shield-slash-sm)"/>
+        </svg>
+      </span>
       Live on Base Mainnet &middot; Sentinel dVPN
     </div>
     <h1 class="fade-in">Private internet<br>for <span class="highlight">AI agents</span><span class="caret"></span></h1>
