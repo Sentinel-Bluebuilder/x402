@@ -164,7 +164,7 @@ client.register('eip155:8453', scheme);
 const paidFetch = wrapFetchWithPayment(fetch, client);
 
 // 3. Buy 30 days of VPN — 402 → auto-sign EIP-3009 → settle → provision
-const res = await paidFetch('https://x402.blue/vpn/connect/30days', {
+const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ sentinelAddr: wallet.address }),

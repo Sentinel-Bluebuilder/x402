@@ -40,7 +40,7 @@ const client = new x402Client();
 client.register('eip155:8453', scheme);
 const paidFetch = wrapFetchWithPayment(fetch, client);
 
-const res = await paidFetch('https://x402.blue/vpn/connect/30days', {
+const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {
   method: 'POST',
   body: JSON.stringify({ sentinelAddr: wallet.address }),
 });
