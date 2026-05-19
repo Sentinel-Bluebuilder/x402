@@ -1404,7 +1404,7 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
         <div class="label">Step 2: Buy 30 days of VPN &mdash; Base mainnet</div>
       </div>
       <pre><code><span class="cm">// Request VPN access &mdash; 402 &rarr; auto-sign &rarr; facilitator settles &rarr; provisioned</span>
-<span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">paidFetch</span>(<span class="str">'https://x402.blue/vpn/connect/30days'</span><span class="op">,</span> {
+<span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">paidFetch</span>(<span class="str">'https://x402.sentinel.co/vpn/connect/30days'</span><span class="op">,</span> {
   <span class="prop">method</span><span class="op">:</span> <span class="str">'POST'</span><span class="op">,</span>
   <span class="prop">headers</span><span class="op">:</span> { <span class="str">'Content-Type'</span><span class="op">:</span> <span class="str">'application/json'</span> }<span class="op">,</span>
   <span class="prop">body</span><span class="op">:</span> JSON<span class="op">.</span><span class="fn">stringify</span>({ <span class="prop">sentinelAddr</span><span class="op">:</span> wallet<span class="op">.</span>address })<span class="op">,</span>
@@ -1506,7 +1506,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
         <div class="dots"><span></span><span></span><span></span></div>
         <div class="label">Check pricing (free, no payment)</div>
       </div>
-      <pre><code><span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://x402.blue/pricing'</span>)<span class="op">;</span>
+      <pre><code><span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://x402.sentinel.co/pricing'</span>)<span class="op">;</span>
 <span class="kw">const</span> pricing <span class="op">=</span> <span class="kw">await</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
 <span class="cm">// {</span>
 <span class="cm">//   protocol: 'x402', network: 'eip155:8453', asset: 'USDC',</span>
@@ -1698,7 +1698,7 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
 <span class="kw">const</span> paidFetch <span class="op">=</span> <span class="fn">wrapFetchWithPayment</span>(fetch<span class="op">,</span> client)<span class="op">;</span>
 
 <span class="cm">// ── Step 3: Pay USDC on Base via x402 ──</span>
-<span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">paidFetch</span>(<span class="str">'https://x402.blue/vpn/connect/30days'</span><span class="op">,</span> {
+<span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">paidFetch</span>(<span class="str">'https://x402.sentinel.co/vpn/connect/30days'</span><span class="op">,</span> {
   <span class="prop">method</span><span class="op">:</span> <span class="str">'POST'</span><span class="op">,</span>
   <span class="prop">headers</span><span class="op">:</span> { <span class="str">'Content-Type'</span><span class="op">:</span> <span class="str">'application/json'</span> }<span class="op">,</span>
   <span class="prop">body</span><span class="op">:</span> JSON<span class="op">.</span><span class="fn">stringify</span>({ <span class="prop">sentinelAddr</span><span class="op">:</span> wallet<span class="op">.</span>address })<span class="op">,</span>
