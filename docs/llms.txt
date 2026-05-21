@@ -125,6 +125,20 @@ const vpn = await connect({
 }
 ```
 
+## Errors
+
+All errors are JSON `{ code, message, nextAction, docs }`. Branch on `code` — it is the stable contract. The first three are returned **before** payment is taken, so agents are never charged USDC for a guaranteed-failure request.
+
+| `code` | Status | Pre-payment | Meaning |
+|---|---|---|---|
+| `MISSING_SENTINEL_ADDR` | 400 | yes | Body did not include `sentinelAddr`. |
+| `INVALID_SENTINEL_ADDR` | 400 | yes | `sentinelAddr` does not match `^sent1[0-9a-z]{38}$`. Use `createWallet()` from `blue-js-sdk/ai-path`. |
+| `UNKNOWN_TIER` | 404 | yes | Path tier is not `1day` \| `7days` \| `30days`. |
+| `PAYMENT_REQUIRED` | 402 | — | Sign EIP-3009 `transferWithAuthorization` and resend with the `PAYMENT-SIGNATURE` header. `@x402/fetch` handles this automatically. |
+| `PROVISIONING_FAILED` | 500 | — | Payment settled but Sentinel TX failed. Safe to retry once; EIP-3009 nonce prevents double-charge. |
+| `NOT_FOUND` | 404 | — | No route matches. See `/manifest`. |
+| `INTERNAL_ERROR` | 500 | — | Unexpected server error. |
+
 ## Security properties
 
 - Agent's Sentinel private key never leaves the agent. Handshake is agent ↔ node.

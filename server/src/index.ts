@@ -70,6 +70,55 @@ const resourceServer = new x402ResourceServer(facilitator)
 const app = express();
 app.use(express.json());
 
+// ─── Pre-payment Validation ───
+// Runs BEFORE paymentMiddleware so agents never pay for requests that are
+// guaranteed to fail (bad tier, missing/malformed sentinelAddr). Every error
+// is structured JSON with a stable `code` field agents can branch on.
+
+const VALID_TIERS = new Set(['1day', '7days', '30days']);
+const SENTINEL_ADDR_RE = /^sent1[0-9a-z]{38}$/;
+
+app.use((req, res, next) => {
+  if (req.method !== 'POST') return next();
+  const m = req.path.match(/^\/vpn\/connect\/([^/]+)$/);
+  if (!m) return next();
+  const tier = m[1];
+
+  if (!VALID_TIERS.has(tier)) {
+    return res.status(404).json({
+      code: 'UNKNOWN_TIER',
+      message: `Tier '${tier}' does not exist. Valid tiers: 1day, 7days, 30days.`,
+      validTiers: ['1day', '7days', '30days'],
+      nextAction: 'POST /vpn/connect/{1day|7days|30days} — see GET /manifest for prices.',
+      docs: '/manifest',
+    });
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const sentinelAddr = body.sentinelAddr;
+
+  if (typeof sentinelAddr !== 'string' || sentinelAddr.length === 0) {
+    return res.status(400).json({
+      code: 'MISSING_SENTINEL_ADDR',
+      message: 'Request body must include `sentinelAddr` (string, sent1-bech32 address).',
+      nextAction: "Call createWallet() from 'blue-js-sdk/ai-path' to mint one, then resend with { sentinelAddr: wallet.address }.",
+      docs: '/manifest',
+    });
+  }
+
+  if (!SENTINEL_ADDR_RE.test(sentinelAddr)) {
+    return res.status(400).json({
+      code: 'INVALID_SENTINEL_ADDR',
+      message: `sentinelAddr '${sentinelAddr}' is not a valid Sentinel bech32 address.`,
+      expectedPattern: '^sent1[0-9a-z]{38}$',
+      nextAction: "Use the `address` field returned by createWallet() from 'blue-js-sdk/ai-path' — do not hand-construct this.",
+      docs: '/manifest',
+    });
+  }
+
+  next();
+});
+
 // ─── x402-Protected Routes ───
 // When an agent hits these without payment, they get HTTP 402 with payment details.
 // When they pay (via @x402/fetch), the facilitator settles USDC to our wallet,
@@ -115,13 +164,23 @@ app.use(
 
 // ─── Route Handlers (only reached after payment is settled) ───
 
+function sendProvisionError(res: express.Response, err: unknown) {
+  const message = (err as Error).message;
+  console.error('[x402] Provision failed:', message);
+  res.status(500).json({
+    code: 'PROVISIONING_FAILED',
+    message,
+    nextAction: 'Safe to retry once. EIP-3009 nonce prevents double-charge. If it persists, GET /agent/{sentinelAddr} to inspect chain state.',
+    docs: '/manifest',
+  });
+}
+
 app.post('/vpn/connect/1day', async (req, res) => {
   try {
     const result = await provisionVpn(1, req.body);
     res.json(result);
   } catch (err) {
-    console.error('[x402] Provision failed:', (err as Error).message);
-    res.status(500).json({ error: 'Provisioning failed', detail: (err as Error).message });
+    sendProvisionError(res, err);
   }
 });
 
@@ -130,8 +189,7 @@ app.post('/vpn/connect/7days', async (req, res) => {
     const result = await provisionVpn(7, req.body);
     res.json(result);
   } catch (err) {
-    console.error('[x402] Provision failed:', (err as Error).message);
-    res.status(500).json({ error: 'Provisioning failed', detail: (err as Error).message });
+    sendProvisionError(res, err);
   }
 });
 
@@ -140,8 +198,7 @@ app.post('/vpn/connect/30days', async (req, res) => {
     const result = await provisionVpn(30, req.body);
     res.json(result);
   } catch (err) {
-    console.error('[x402] Provision failed:', (err as Error).message);
-    res.status(500).json({ error: 'Provisioning failed', detail: (err as Error).message });
+    sendProvisionError(res, err);
   }
 });
 
@@ -297,9 +354,17 @@ app.get('/manifest', (_req, res) => {
         nextAction: 'Sign EIP-3009 transferWithAuthorization, resend with PAYMENT-SIGNATURE header',
       },
       errors: {
-        400: 'Bad request — missing or malformed sentinelAddr',
-        402: 'Payment required — sign EIP-3009 and resend',
-        500: 'Provisioning failed — { error, detail }. Safe to retry once.',
+        note: 'All errors are JSON: { code, message, nextAction, docs }. Branch on `code` — it is the stable contract.',
+        codes: {
+          MISSING_SENTINEL_ADDR: { status: 400, meaning: 'Request body did not include sentinelAddr.' },
+          INVALID_SENTINEL_ADDR: { status: 400, meaning: "sentinelAddr is not a valid sent1-bech32 address — use createWallet() from 'blue-js-sdk/ai-path'." },
+          UNKNOWN_TIER: { status: 404, meaning: 'Path tier is not one of 1day | 7days | 30days.' },
+          PAYMENT_REQUIRED: { status: 402, meaning: 'Sign EIP-3009 transferWithAuthorization and resend with PAYMENT-SIGNATURE header. @x402/fetch handles this automatically.' },
+          PROVISIONING_FAILED: { status: 500, meaning: 'Payment settled but Sentinel TX failed. Safe to retry once; EIP-3009 nonce prevents double-charge.' },
+          INTERNAL_ERROR: { status: 500, meaning: 'Unexpected server error. Open an issue if reproducible.' },
+          NOT_FOUND: { status: 404, meaning: 'No route matches. See /manifest for endpoints.' },
+        },
+        prePaymentGuarantee: 'MISSING_SENTINEL_ADDR / INVALID_SENTINEL_ADDR / UNKNOWN_TIER are returned BEFORE paymentMiddleware. Agents are never charged USDC for guaranteed-failure requests.',
       },
     },
     flow: [
@@ -433,12 +498,39 @@ app.get('/agent/:sentinelAddr', async (req, res) => {
   }
 });
 
+// ─── JSON 404 / 405 catch-all ───
+// Replaces Express's default HTML 404 page so agents always get structured JSON.
+
+app.use((req, res) => {
+  res.status(404).json({
+    code: 'NOT_FOUND',
+    message: `No route matches ${req.method} ${req.path}.`,
+    nextAction: 'See GET /manifest for the full list of endpoints.',
+    docs: '/manifest',
+  });
+});
+
+// ─── JSON error handler ───
+// Final safety net — any uncaught error becomes structured JSON, not an HTML stack trace.
+
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[x402] Uncaught error:', err.message);
+  if (res.headersSent) return;
+  res.status(500).json({
+    code: 'INTERNAL_ERROR',
+    message: err.message,
+    nextAction: 'Report at https://github.com/Sentinel-Bluebuilder/x402/issues if it persists.',
+    docs: '/manifest',
+  });
+});
+
 // ─── VPN Provisioning ───
 
 async function provisionVpn(days: number, body: Record<string, unknown>) {
   const sentinelAddr = body.sentinelAddr as string;
 
-  if (!sentinelAddr || !sentinelAddr.startsWith('sent1')) {
+  // Pre-payment middleware already validated the address — this is a defensive recheck.
+  if (!sentinelAddr || !SENTINEL_ADDR_RE.test(sentinelAddr)) {
     throw new Error('Include sentinelAddr (sent1...) in request body');
   }
 
