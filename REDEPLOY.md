@@ -6,13 +6,14 @@ The latest image is built and pushed. The host needs to pull and restart.
 
 | SHA | Title |
 |---|---|
+| `3175833` | server: structured JSON errors + pre-payment validation |
 | `7099f15` | server: fix manifest URLs (x402.blue → x402.sentinel.co, repo links) |
 | `3d14045` | docs: fix dead x402.blue URL, add USDC bootstrap section *(docs-only, no code)* |
 | `1b1fdb9` | treewide: rename `blue-agent-connect` → `blue-js-sdk/ai-path` |
 | `4f04835` | server: add `GET /manifest` + `/nodes` for AI-agent discovery |
 | `a10db35` | dashboard: restructure on EventEmitter-based SSE pattern *(dashboard-only)* |
 
-The running build is **46+ hours old** and predates all of these.
+The running build is **47+ hours old** and predates all of these.
 
 ## Why this matters
 
@@ -70,6 +71,13 @@ curl -s https://x402.sentinel.co/manifest | head -c 200
 
 # Nodes route must respond (currently 404 on the old build)
 curl -s https://x402.sentinel.co/nodes
+
+# Error surface must be structured JSON (currently empty/HTML on the old build)
+curl -s -X POST https://x402.sentinel.co/vpn/connect/forever -H 'Content-Type: application/json' -d '{}'
+# Expect: {"code":"UNKNOWN_TIER","message":"Tier 'forever' does not exist...",...}
+
+curl -s -X POST https://x402.sentinel.co/vpn/connect/1day -H 'Content-Type: application/json' -d '{"sentinelAddr":"hello"}'
+# Expect: {"code":"INVALID_SENTINEL_ADDR","message":"...","expectedPattern":"^sent1[0-9a-z]{38}$",...}
 
 # A real provisioning call's instructions string must reference blue-js-sdk/ai-path
 # (no easy curl — running the end-to-end test from fresh-test/connect-docs-driven.mjs
