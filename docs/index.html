@@ -5,6 +5,69 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>x402 — Private Internet for AI Agents</title>
 <meta name="description" content="AI agents pay USDC on Base for private VPN access through Sentinel's decentralized node network. One function call. No KYC. No accounts.">
+
+<!-- Agent discovery: machine-readable spec + AI summary -->
+<link rel="alternate" type="application/json" href="/manifest" title="x402 protocol manifest (machine-readable, ~300 tokens)">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="x402 summary for LLMs (llmstxt.org)">
+<meta name="x402-manifest" content="/manifest">
+<meta name="x402-llms" content="/llms.txt">
+
+<!-- JSON-LD: embed the full protocol spec inline so a single HTML fetch is sufficient. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebAPI",
+  "name": "x402",
+  "description": "Pay USDC on Base for a Sentinel dVPN subscription. One HTTP request, one EIP-3009 signature.",
+  "documentation": "/manifest",
+  "termsOfService": "/llms.txt",
+  "potentialAction": [
+    { "@type": "Action", "name": "POST /vpn/connect/1day",   "target": "/vpn/connect/1day",   "description": "Pay $0.033 USDC, get 1 day of VPN" },
+    { "@type": "Action", "name": "POST /vpn/connect/7days",  "target": "/vpn/connect/7days",  "description": "Pay $0.233 USDC, get 7 days of VPN" },
+    { "@type": "Action", "name": "POST /vpn/connect/30days", "target": "/vpn/connect/30days", "description": "Pay $1.00 USDC, get 30 days of VPN" }
+  ],
+  "x402": {
+    "protocol": "x402",
+    "version": "1.0",
+    "network": { "caip2": "eip155:8453", "chainId": 8453, "name": "Base mainnet" },
+    "payment": {
+      "scheme": "exact",
+      "standard": "EIP-3009",
+      "method": "transferWithAuthorization",
+      "asset": { "symbol": "USDC", "decimals": 6, "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
+      "gasless": true,
+      "approveRequired": false
+    },
+    "request": { "contentType": "application/json", "body": { "sentinelAddr": "^sent1[0-9a-z]{38}$" } },
+    "response": {
+      "200": { "subscriptionId": "number", "planId": "number", "feeGranter": "sent1...", "nodeAddress": "sentnode1...", "nodes": "string[]", "expiresAt": "ISO8601" },
+      "402": "Sign EIP-3009 transferWithAuthorization, resend with PAYMENT-SIGNATURE header"
+    },
+    "packages": { "payment": "@x402/fetch", "scheme": "@x402/evm", "sentinel": "blue-js-sdk/ai-path" },
+    "sentinel": {
+      "chain": "sentinelhub-2",
+      "addressPrefix": "sent",
+      "coinType": 118,
+      "denom": "udvpn",
+      "rpc": "https://rpc.sentinel.co:443",
+      "lcd": "https://lcd.sentinel.co",
+      "walletCreate": "createWallet() from blue-js-sdk/ai-path → { address, mnemonic }",
+      "connect": "connect({ mnemonic, subscriptionId, feeGranter, nodeAddress }) → { connected, ip, protocol }",
+      "disconnect": "disconnect() — ends session on-chain (fee-granted), tears down tunnel",
+      "nodeFallback": "If provision.nodeAddress is empty, call rpcQueryNodesForPlan(rpc, provision.planId, { status: 1 }) and pick from items[]"
+    },
+    "moreEndpoints": {
+      "/manifest": "Full JSON spec",
+      "/llms.txt": "Human + AI markdown summary",
+      "/pricing": "Human pricing table",
+      "/nodes": "VPN nodes in operator plan",
+      "/health": "Uptime",
+      "/agent/:sentinelAddr": "Subscription + fee-grant status"
+    }
+  }
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1378,7 +1441,7 @@ section h3 {
 <span class="kw">import</span> { <span class="fn">createWalletClient</span>, <span class="fn">http</span> } <span class="kw">from</span> <span class="str">'viem'</span><span class="op">;</span>
 <span class="kw">import</span> { <span class="fn">privateKeyToAccount</span> } <span class="kw">from</span> <span class="str">'viem/accounts'</span><span class="op">;</span>
 <span class="kw">import</span> { <span class="fn">base</span> } <span class="kw">from</span> <span class="str">'viem/chains'</span><span class="op">;</span>
-<span class="kw">import</span> { <span class="fn">createWallet</span>, <span class="fn">connect</span>, <span class="fn">disconnect</span> } <span class="kw">from</span> <span class="str">'blue-agent-connect'</span><span class="op">;</span>
+<span class="kw">import</span> { <span class="fn">createWallet</span>, <span class="fn">connect</span>, <span class="fn">disconnect</span>, <span class="fn">rpcQueryNodesForPlan</span>, <span class="fn">createRpcQueryClientWithFallback</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk/ai-path'</span><span class="op">;</span>
 
 <span class="cm">// Create a Sentinel wallet (one-time &mdash; save the mnemonic!)</span>
 <span class="kw">const</span> wallet <span class="op">=</span> <span class="kw">await</span> <span class="fn">createWallet</span>()<span class="op">;</span>
@@ -1428,14 +1491,22 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
         <div class="dots"><span></span><span></span><span></span></div>
         <div class="label">Step 3: Connect to VPN &mdash; use provisioned credentials</div>
       </div>
-      <pre><code><span class="cm">// connect() and createWallet() already imported above from 'blue-agent-connect'</span>
+      <pre><code><span class="cm">// connect(), createWallet(), rpcQueryNodesForPlan(), createRpcQueryClientWithFallback()</span>
+<span class="cm">// already imported above from 'blue-js-sdk/ai-path'</span>
+
+<span class="cm">// Resolve node &mdash; server returns one, but fall back to a live plan query if empty</span>
+<span class="kw">let</span> nodeAddress <span class="op">=</span> provision<span class="op">.</span>nodeAddress<span class="op">;</span>
+<span class="kw">if</span> (<span class="op">!</span>nodeAddress) {
+  <span class="kw">const</span> rpc <span class="op">=</span> <span class="kw">await</span> <span class="fn">createRpcQueryClientWithFallback</span>()<span class="op">;</span>
+  <span class="kw">const</span> { items } <span class="op">=</span> <span class="kw">await</span> <span class="fn">rpcQueryNodesForPlan</span>(rpc<span class="op">,</span> provision<span class="op">.</span>planId<span class="op">,</span> { <span class="prop">status</span><span class="op">:</span> <span class="num">1</span><span class="op">,</span> <span class="prop">limit</span><span class="op">:</span> <span class="num">50</span> })<span class="op">;</span>
+  nodeAddress <span class="op">=</span> items[<span class="num">0</span>]<span class="op">?.</span>address<span class="op">;</span>
+}
 
 <span class="cm">// Connect using the provisioned subscription + fee grant</span>
 <span class="cm">// Agent has 0 P2P tokens &mdash; operator covers all gas</span>
-<span class="cm">// Server returns nodeAddress (random) + nodes[] (full list)</span>
 <span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
   <span class="prop">mnemonic</span><span class="op">:</span> wallet<span class="op">.</span>mnemonic<span class="op">,</span>                    <span class="cm">// from Step 1</span>
-  <span class="prop">nodeAddress</span><span class="op">:</span> provision<span class="op">.</span>nodeAddress<span class="op">,</span>        <span class="cm">// server picks random node for you</span>
+  <span class="prop">nodeAddress</span><span class="op">,</span>                                  <span class="cm">// from provision or fallback query</span>
   <span class="prop">subscriptionId</span><span class="op">:</span> String(provision<span class="op">.</span>subscriptionId)<span class="op">,</span>  <span class="cm">// from Step 2</span>
   <span class="prop">feeGranter</span><span class="op">:</span> provision<span class="op">.</span>feeGranter<span class="op">,</span>          <span class="cm">// operator pays gas</span>
 })<span class="op">;</span>
@@ -1679,7 +1750,10 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 <span class="kw">import</span> { <span class="fn">createWalletClient</span>, <span class="fn">http</span> } <span class="kw">from</span> <span class="str">'viem'</span><span class="op">;</span>
 <span class="kw">import</span> { <span class="fn">privateKeyToAccount</span> } <span class="kw">from</span> <span class="str">'viem/accounts'</span><span class="op">;</span>
 <span class="kw">import</span> { <span class="fn">base</span> } <span class="kw">from</span> <span class="str">'viem/chains'</span><span class="op">;</span>
-<span class="kw">import</span> { <span class="fn">createWallet</span>, <span class="fn">connect</span>, <span class="fn">disconnect</span> } <span class="kw">from</span> <span class="str">'blue-agent-connect'</span><span class="op">;</span>
+<span class="kw">import</span> {
+  <span class="fn">createWallet</span><span class="op">,</span> <span class="fn">connect</span><span class="op">,</span> <span class="fn">disconnect</span><span class="op">,</span>
+  <span class="fn">rpcQueryNodesForPlan</span><span class="op">,</span> <span class="fn">createRpcQueryClientWithFallback</span><span class="op">,</span>
+} <span class="kw">from</span> <span class="str">'blue-js-sdk/ai-path'</span><span class="op">;</span>
 
 <span class="cm">// ── Step 1: Create Sentinel wallet (one-time) ──</span>
 <span class="kw">const</span> wallet <span class="op">=</span> <span class="kw">await</span> <span class="fn">createWallet</span>()<span class="op">;</span>
@@ -1707,10 +1781,18 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
 <span class="kw">const</span> provision <span class="op">=</span> <span class="kw">await</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
 <span class="cm">// provision.nodeAddress + provision.subscriptionId + provision.feeGranter &rarr; all you need</span>
 
-<span class="cm">// ── Step 4: Connect to VPN (0 gas, 0 P2P) ──</span>
+<span class="cm">// ── Step 4: Resolve node &mdash; use provision.nodeAddress, fall back to live plan query ──</span>
+<span class="kw">let</span> nodeAddress <span class="op">=</span> provision<span class="op">.</span>nodeAddress<span class="op">;</span>
+<span class="kw">if</span> (<span class="op">!</span>nodeAddress) {
+  <span class="kw">const</span> rpc <span class="op">=</span> <span class="kw">await</span> <span class="fn">createRpcQueryClientWithFallback</span>()<span class="op">;</span>
+  <span class="kw">const</span> { items } <span class="op">=</span> <span class="kw">await</span> <span class="fn">rpcQueryNodesForPlan</span>(rpc<span class="op">,</span> provision<span class="op">.</span>planId<span class="op">,</span> { <span class="prop">status</span><span class="op">:</span> <span class="num">1</span><span class="op">,</span> <span class="prop">limit</span><span class="op">:</span> <span class="num">50</span> })<span class="op">;</span>
+  nodeAddress <span class="op">=</span> items[<span class="num">0</span>]<span class="op">?.</span>address<span class="op">;</span>
+}
+
+<span class="cm">// ── Step 5: Connect to VPN (0 gas, 0 P2P) ──</span>
 <span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
   <span class="prop">mnemonic</span><span class="op">:</span> wallet<span class="op">.</span>mnemonic<span class="op">,</span>
-  <span class="prop">nodeAddress</span><span class="op">:</span> provision<span class="op">.</span>nodeAddress<span class="op">,</span>       <span class="cm">// server picks random &mdash; or choose from provision.nodes[]</span>
+  <span class="prop">nodeAddress</span><span class="op">,</span>
   <span class="prop">subscriptionId</span><span class="op">:</span> String(provision<span class="op">.</span>subscriptionId)<span class="op">,</span>
   <span class="prop">feeGranter</span><span class="op">:</span> provision<span class="op">.</span>feeGranter<span class="op">,</span>
 })<span class="op">;</span>
@@ -1718,10 +1800,10 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
 console<span class="op">.</span><span class="fn">log</span>(<span class="str">`VPN active: ${vpn.ip} via ${vpn.protocol}`</span>)<span class="op">;</span>
 <span class="cm">// All traffic now through encrypted P2P tunnel</span>
 
-<span class="cm">// ── Step 5: Do private work ──</span>
+<span class="cm">// ── Step 6: Do private work ──</span>
 <span class="kw">const</span> data <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.example.com/sensitive'</span>)<span class="op">;</span>
 
-<span class="cm">// ── Step 6: Disconnect (also uses fee grant) ──</span>
+<span class="cm">// ── Step 7: Disconnect (also uses fee grant) ──</span>
 <span class="kw">await</span> <span class="fn">disconnect</span>()<span class="op">;</span></code></pre>
     </div>
 
@@ -1742,7 +1824,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
   <span class="str">"sentinelTxHash"</span>: <span class="str">"2C1CFE..."</span>,
   <span class="str">"expiresAt"</span>: <span class="str">"2026-05-14T..."</span>,
   <span class="str">"operatorAddress"</span>: <span class="str">"0xCC689D..."</span>,
-  <span class="str">"instructions"</span>: <span class="str">"connect({ mnemonic, nodeAddress, subscriptionId, feeGranter })"</span>
+  <span class="str">"instructions"</span>: <span class="str">"connect({ mnemonic, nodeAddress, subscriptionId, feeGranter }) from 'blue-js-sdk/ai-path' — if nodeAddress is empty, call rpcQueryNodesForPlan(rpc, planId, { status: 1 }) and use items[0].address"</span>
 }</code></pre>
     </div>
   </div>

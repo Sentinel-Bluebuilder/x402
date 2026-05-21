@@ -1,0 +1,132 @@
+# x402
+
+> HTTP 402 payment server. AI agents pay native USDC on Base via EIP-3009 `transferWithAuthorization` in exchange for a Sentinel decentralized VPN subscription. One HTTP request, one signature, zero prerequisites — no custom contract, no `approve()`, no bridge, no KYC.
+
+The agent signs an EIP-3009 message off-chain. The self-hosted facilitator settles USDC on Base (~2s). The server provisions a Sentinel subscription share + a fee grant in one atomic TX. The agent then opens a direct WireGuard/V2Ray tunnel to a node. The operator never sees the tunnel or the traffic.
+
+## Live endpoints
+
+Base URL: `https://x402.blue`
+
+Paid (HTTP 402, body `{ "sentinelAddr": "sent1..." }`):
+- POST `/vpn/connect/1day` — $0.033 USDC, 1 day
+- POST `/vpn/connect/7days` — $0.233 USDC, 7 days
+- POST `/vpn/connect/30days` — $1.00 USDC, 30 days
+
+Free:
+- GET `/manifest` — full machine-readable protocol spec (use this first, ~300 tokens)
+- GET `/pricing` — human pricing table
+- GET `/nodes` — VPN nodes in operator plan
+- GET `/health` — uptime
+- GET `/agent/:sentinelAddr` — subscription + fee-grant status
+
+## Payment
+
+- Network: Base mainnet (`eip155:8453`, chainId 8453)
+- Asset: USDC at `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` (6 decimals)
+- Scheme: `exact` / EIP-3009 `transferWithAuthorization`
+- Gasless for agent on Base settlement (facilitator pays)
+- Gasless for agent on Sentinel session start (operator fee-grants)
+
+## Agent flow
+
+1. POST to a paid endpoint with `{ sentinelAddr }`.
+2. Server returns 402 with `PAYMENT-REQUIRED` header (amount, asset, payTo, network).
+3. Agent signs EIP-3009 locally (EIP-712).
+4. Agent resends with `PAYMENT-SIGNATURE` header — `@x402/fetch` does this automatically.
+5. Facilitator settles USDC on Base.
+6. Server submits atomic `MsgShareSubscription` + `MsgGrantAllowance` on Sentinel.
+7. Server returns 200 `{ provisioned, subscriptionId, planId, feeGranter, nodeAddress, nodes[], sentinelTxHash, expiresAt }`.
+8. Agent calls `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`.
+9. `MsgStartSession` on Sentinel — gas paid by `feeGranter`.
+10. Direct WireGuard/V2Ray handshake — tunnel up.
+
+## Reference code
+
+```typescript
+import { x402Client, wrapFetchWithPayment } from '@x402/fetch';
+import { ExactEvmScheme } from '@x402/evm/exact/client';
+import {
+  createWallet, connect,
+  rpcQueryNodesForPlan, createRpcQueryClientWithFallback,
+} from 'blue-js-sdk/ai-path';
+
+const wallet = await createWallet();
+const scheme = new ExactEvmScheme({ address, signTypedData });
+const client = new x402Client();
+client.register('eip155:8453', scheme);
+const paidFetch = wrapFetchWithPayment(fetch, client);
+
+const res = await paidFetch('https://x402.blue/vpn/connect/30days', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ sentinelAddr: wallet.address }),
+});
+const provision = await res.json();
+const { subscriptionId, feeGranter, planId } = provision;
+
+// If the server didn't pre-select a node, query the plan directly
+let nodeAddress = provision.nodeAddress;
+if (!nodeAddress) {
+  const rpc = await createRpcQueryClientWithFallback();
+  const { items } = await rpcQueryNodesForPlan(rpc, planId, { status: 1, limit: 50 });
+  nodeAddress = items[0]?.address;
+}
+
+const vpn = await connect({
+  mnemonic: wallet.mnemonic,
+  subscriptionId: String(subscriptionId),
+  feeGranter,
+  nodeAddress,
+});
+// vpn.connected === true
+```
+
+## Packages
+
+- `@x402/fetch` — wraps `fetch`, auto-signs 402 responses
+- `@x402/evm` — `ExactEvmScheme` EIP-3009 signer
+- `blue-js-sdk/ai-path` — Sentinel wallet (`createWallet`, `importWallet`), tunnel (`connect`, `disconnect`), and plan/node discovery (`rpcQueryNodesForPlan`, `createRpcQueryClientWithFallback`) — WireGuard/V2Ray
+
+## Request schema
+
+```json
+{ "sentinelAddr": "sent1..." }
+```
+
+`sentinelAddr` matches `^sent1[0-9a-z]{38}$` (Sentinel bech32). Generate with `createWallet()` from `blue-js-sdk/ai-path`.
+
+## Response schema (200)
+
+```json
+{
+  "provisioned": true,
+  "subscriptionId": 1192288,
+  "planId": 42,
+  "feeGranter": "sent1...",
+  "nodeAddress": "sentnode1...",
+  "nodes": ["sentnode1a...", "sentnode1b..."],
+  "sentinelTxHash": "...",
+  "expiresAt": "2026-06-17T00:00:00Z"
+}
+```
+
+## Security properties
+
+- Agent's Sentinel private key never leaves the agent. Handshake is agent ↔ node.
+- Agent's EVM key never leaves the agent. Only the EIP-3009 signature is transmitted.
+- Self-hosted facilitator option — no third party in the payment path.
+- Every settlement is a verifiable public Base transaction.
+- Operator stores `sentinelAddr` only. No IPs, traffic, or logs.
+- Tunnel is end-to-end encrypted (WireGuard or V2Ray).
+
+## Quick discovery for agents
+
+Hit `GET /manifest` first. It returns the entire protocol — endpoints, pricing in atomic units, request/response schemas, the state machine, and a runnable code example — as JSON in ~300 tokens.
+
+## Source
+
+- README: https://github.com/x402-blue/x402/blob/main/README.md
+- Manifesto: https://github.com/x402-blue/x402/blob/main/MANIFESTO.md
+- x402 spec: https://github.com/coinbase/x402
+- Sentinel: https://sentinel.co
