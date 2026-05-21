@@ -105,7 +105,7 @@ Response (after payment):
   "sentinelTxHash": "ABC123...",
   "expiresAt": "2026-04-15T18:50:48Z",
   "operatorAddress": "0xCC689D...",
-  "instructions": "import { connect } from 'blue-agent-connect'; await connect({ mnemonic, subscriptionId: 1192288, feeGranter: 'sent12e03...' })"
+  "instructions": "import { connect } from 'blue-js-sdk/ai-path'; await connect({ mnemonic, subscriptionId: 1192288, feeGranter: 'sent12e03...' })"
 }
 ```
 

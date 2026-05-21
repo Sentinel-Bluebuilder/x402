@@ -9,7 +9,7 @@ One HTTP request. No KYC. No accounts. No P2P tokens. No custom contract to depl
 ```typescript
 import { x402Client, wrapFetchWithPayment } from '@x402/fetch';
 import { ExactEvmScheme } from '@x402/evm/exact/client';
-import { createWallet, connect } from 'blue-agent-connect';
+import { createWallet, connect } from 'blue-js-sdk/ai-path';
 
 const wallet = await createWallet();
 
@@ -121,7 +121,7 @@ You need:
 ### Connect as an agent
 
 ```bash
-npm install @x402/fetch @x402/evm blue-agent-connect viem
+npm install @x402/fetch @x402/evm blue-js-sdk viem
 ```
 
 ```typescript
@@ -130,7 +130,7 @@ import { ExactEvmScheme } from '@x402/evm/exact/client';
 import { createWalletClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { base } from 'viem/chains';
-import { createWallet, connect, disconnect } from 'blue-agent-connect';
+import { createWallet, connect, disconnect } from 'blue-js-sdk/ai-path';
 
 // 1. Sentinel wallet (one-time — persist the mnemonic)
 const wallet = await createWallet();

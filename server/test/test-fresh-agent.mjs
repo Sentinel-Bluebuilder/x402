@@ -186,39 +186,13 @@ async function main() {
     });
 
     // ════════════════════════════════════════════════════════════════════
-    // STEP 4: Fund agent — ETH gas on Base
+    // STEP 4: Verify agent funded (no ETH needed — EIP-3009 = 0 gas)
     // ════════════════════════════════════════════════════════════════════
-    const s4 = step('Fund agent: send ETH on Base', {
-      from: opWallet.address,
-      to: evmWallet.address,
-      amount: '0.00005 ETH',
-    });
-
-    const ethTx = await opWallet.sendTransaction({ to: evmWallet.address, value: ethers.parseEther('0.00005') });
-    console.log(`    TX submitted: ${ethTx.hash}`);
-    const ethRcpt = await ethTx.wait(1);
-    s4.confirmed = ts();
-    s4.block = ethRcpt.blockNumber;
-    console.log(`    Confirmed block ${ethRcpt.blockNumber}`);
-
-    tx('Base — ETH gas funding (operator → agent)', 'Base', ethTx.hash, {
-      block: ethRcpt.blockNumber,
-      from: opWallet.address,
-      to: evmWallet.address,
-      amount: '0.00005 ETH',
-    });
-
-    // ════════════════════════════════════════════════════════════════════
-    // STEP 5: Verify agent funded
-    // ════════════════════════════════════════════════════════════════════
-    const [aEth, aUsdc] = await Promise.all([
-      provider.getBalance(evmWallet.address),
-      usdc.balanceOf(evmWallet.address),
-    ]);
-    balances.postFunding = { usdc: ethers.formatUnits(aUsdc, 6), eth: ethers.formatEther(aEth) };
+    const aUsdc = await usdc.balanceOf(evmWallet.address);
+    balances.postFunding = { usdc: ethers.formatUnits(aUsdc, 6), eth: '0' };
     step('Verify agent funded', {
       agentUSDC: `${balances.postFunding.usdc} USDC`,
-      agentETH: `${balances.postFunding.eth} ETH`,
+      agentETH: '0 ETH — agent never needs gas (EIP-3009 = facilitator pays)',
       agentP2P: '0.00 P2P (fee-granted — no tokens needed)',
       onChain: 'read-only',
     });
@@ -337,16 +311,13 @@ async function main() {
     // ════════════════════════════════════════════════════════════════════
     // STEP 9: Check post-payment balance on Base
     // ════════════════════════════════════════════════════════════════════
-    const [postEth, postUsdc] = await Promise.all([
-      provider.getBalance(evmWallet.address),
-      usdc.balanceOf(evmWallet.address),
-    ]);
-    balances.postPayment = { usdc: ethers.formatUnits(postUsdc, 6), eth: ethers.formatEther(postEth) };
+    const postUsdc = await usdc.balanceOf(evmWallet.address);
+    balances.postPayment = { usdc: ethers.formatUnits(postUsdc, 6) };
     const paid = (parseFloat(balances.postFunding.usdc) - parseFloat(balances.postPayment.usdc)).toFixed(6);
 
     step('Post-payment agent balance', {
       agentUSDC: `${balances.postPayment.usdc} USDC (was ${balances.postFunding.usdc}, paid ${paid})`,
-      agentETH: `${balances.postPayment.eth} ETH (unchanged — EIP-3009 = 0 agent gas)`,
+      agentGas: 'ZERO — EIP-3009 means agent never sends a TX on Base',
       onChain: 'read-only',
     });
 
@@ -553,20 +524,17 @@ async function main() {
     // ════════════════════════════════════════════════════════════════════
     // STEP 18: Query final balances
     // ════════════════════════════════════════════════════════════════════
-    const [fEth, fUsdc, oEth, oUsdc] = await Promise.all([
-      provider.getBalance(evmWallet.address),
+    const [fUsdc, oUsdc] = await Promise.all([
       usdc.balanceOf(evmWallet.address),
-      provider.getBalance(opWallet.address),
       usdc.balanceOf(opWallet.address),
     ]);
-    balances.final = { usdc: ethers.formatUnits(fUsdc, 6), eth: ethers.formatEther(fEth) };
-    balances.operator = { usdc: ethers.formatUnits(oUsdc, 6), eth: ethers.formatEther(oEth) };
+    balances.final = { usdc: ethers.formatUnits(fUsdc, 6) };
+    balances.operator = { usdc: ethers.formatUnits(oUsdc, 6) };
 
     step('Final balances', {
       agentUSDC: `${balances.final.usdc} USDC`,
-      agentETH: `${balances.final.eth} ETH`,
+      agentGas: 'ZERO on both chains (EIP-3009 on Base, fee grant on Sentinel)',
       operatorUSDC: `${balances.operator.usdc} USDC`,
-      operatorETH: `${balances.operator.eth} ETH`,
     });
 
     // Cleanup RPC
@@ -684,16 +652,16 @@ function writeResults(testStart, wallets, balances, provision, conn, feeGrantDat
   L.push(HR);
   L.push('');
   L.push('Agent (Base):');
-  L.push(`  After funding:    ${balances.postFunding?.usdc || '?'} USDC / ${balances.postFunding?.eth || '?'} ETH`);
-  L.push(`  After payment:    ${balances.postPayment?.usdc || '?'} USDC / ${balances.postPayment?.eth || '?'} ETH`);
-  L.push(`  Final:            ${balances.final?.usdc || '?'} USDC / ${balances.final?.eth || '?'} ETH`);
+  L.push(`  After funding:    ${balances.postFunding?.usdc || '?'} USDC`);
+  L.push(`  After x402:       ${balances.postPayment?.usdc || '?'} USDC`);
+  L.push(`  Final:            ${balances.final?.usdc || '?'} USDC`);
+  L.push('  ETH:              0 — agent never needs gas (EIP-3009 = facilitator pays)');
   L.push('');
   L.push('Agent (Sentinel):');
   L.push('  P2P:              0.00 (all TXs covered by fee grant)');
   L.push('');
   L.push('Operator:');
   L.push(`  USDC:             ${balances.operator?.usdc || '?'}`);
-  L.push(`  ETH:              ${balances.operator?.eth || '?'}`);
   L.push('');
   L.push('');
 

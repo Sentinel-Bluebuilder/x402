@@ -152,7 +152,7 @@ To compete, someone would need: a working decentralized VPN network (years to bu
 ```typescript
 import { x402Client, wrapFetchWithPayment } from '@x402/fetch';
 import { ExactEvmScheme } from '@x402/evm/exact/client';
-import { createWallet, connect } from 'blue-agent-connect';
+import { createWallet, connect } from 'blue-js-sdk/ai-path';
 
 // 1. Sentinel wallet (one-time — persist the mnemonic)
 const wallet = await createWallet();
@@ -220,7 +220,7 @@ This is a flywheel. Every agent that connects makes the network more valuable fo
 | **Live** | Self-hosted facilitator (`server/src/facilitator.ts`) — no Coinbase dependency required |
 | **Live** | Subscription pool manager — handles 8-allocation-per-sub chain limit |
 | **Live** | Fee-grant flow — agent's `MsgStartSession` pays zero gas |
-| **Live** | Reference agent example using `@x402/fetch` + `blue-agent-connect` |
+| **Live** | Reference agent example using `@x402/fetch` + `blue-js-sdk/ai-path` |
 | **Pending** | Solana support (code written, env wiring not enabled) |
 | **Pending** | MCP server — Claude/GPT/Gemini tool integration |
 
@@ -229,7 +229,7 @@ This is a flywheel. Every agent that connects makes the network more valuable fo
 - Fee grant module
 - MsgShareSubscription
 - blue-js-sdk (Sentinel chain operations)
-- blue-agent-connect (WireGuard + V2Ray E2E)
+- blue-js-sdk/ai-path (WireGuard + V2Ray E2E)
 - Node tester (Sentinel nodes validated)
 - P2P treasury (funded)
 

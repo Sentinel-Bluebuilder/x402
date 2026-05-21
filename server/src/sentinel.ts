@@ -254,7 +254,7 @@ export async function provisionAgent(
           sentinelTxHash: result.transactionHash,
           expiresAt: expirationDate.toISOString(),
           operatorAddress,
-          instructions: `import { connect } from 'blue-agent-connect'; await connect({ mnemonic, nodeAddress: '${recommended}', subscriptionId: '${slot.id}', feeGranter: '${operatorAddress}' })`,
+          instructions: `import { connect } from 'blue-js-sdk/ai-path'; await connect({ mnemonic, nodeAddress: '${recommended}', subscriptionId: '${slot.id}', feeGranter: '${operatorAddress}' })`,
         };
       }
 
@@ -313,7 +313,7 @@ export async function provisionAgent(
     sentinelTxHash: result.transactionHash,
     expiresAt: expirationDate.toISOString(),
     operatorAddress,
-    instructions: `import { connect } from 'blue-agent-connect'; await connect({ mnemonic, nodeAddress: '${recommended}', subscriptionId: '${subscriptionId}', feeGranter: '${operatorAddress}' })`,
+    instructions: `import { connect } from 'blue-js-sdk/ai-path'; await connect({ mnemonic, nodeAddress: '${recommended}', subscriptionId: '${subscriptionId}', feeGranter: '${operatorAddress}' })`,
   };
 }
 

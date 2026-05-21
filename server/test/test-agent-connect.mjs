@@ -3,7 +3,7 @@
  *
  * Tests the FULL agent flow after x402 provisioning:
  *   Agent has: subscription 1192288 on Plan 42, fee grant from operator, 0 P2P
- *   Agent does: connect via blue-agent-connect → session → handshake → tunnel
+ *   Agent does: connect via blue-js-sdk/ai-path → session → handshake → tunnel
  *
  * This validates both SDK bug fixes:
  *   Bug 1: node-connect.js balance check now skips when feeGranter is set

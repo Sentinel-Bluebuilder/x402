@@ -7,7 +7,7 @@
  *
  * The page says (Managed Plan flow):
  *   1. npm install @x402/fetch @x402/evm blue-js-sdk viem
- *   2. Create Sentinel wallet via createWallet() from blue-agent-connect
+ *   2. Create Sentinel wallet via createWallet() from blue-js-sdk/ai-path
  *   3. Set up x402Client + ExactEvmScheme + wrapFetchWithPayment
  *   4. POST /vpn/connect/1day with { sentinelAddr }
  *   5. connect({ mnemonic, nodeAddress: provision.nodeAddress, subscriptionId, feeGranter })
@@ -116,7 +116,7 @@ console.log('\n--- PHASE 2: PACKAGE INSTALL ---\n');
 // Page says: npm install @x402/fetch @x402/evm blue-js-sdk viem
 // Verify all packages are importable
 let installOk = true;
-const requiredPackages = ['@x402/fetch', '@x402/evm/exact/client', 'blue-agent-connect', 'viem'];
+const requiredPackages = ['@x402/fetch', '@x402/evm/exact/client', 'blue-js-sdk/ai-path', 'viem'];
 
 for (const pkg of requiredPackages) {
   try {
@@ -141,9 +141,9 @@ console.log('\n--- PHASE 3: WALLET CREATION ---\n');
 let sentWallet;
 let evmWallet;
 
-// Page says: import { createWallet } from 'blue-agent-connect'
+// Page says: import { createWallet } from 'blue-js-sdk/ai-path'
 try {
-  const { createWallet } = await import('blue-agent-connect');
+  const { createWallet } = await import('blue-js-sdk/ai-path');
   sentWallet = await createWallet();
   note('Wallet', `Sentinel wallet created: ${sentWallet.address}`);
   if (sentWallet.mnemonic) note('Wallet', 'Mnemonic returned — agent can persist it');
@@ -269,7 +269,7 @@ try {
   if (provision.instructions) note('Payment', `Instructions present: "${provision.instructions.slice(0, 80)}..."`);
   else note('Payment', 'MISSING instructions — agent has no guidance for next step', 5);
 
-  // Verify instructions reference blue-agent-connect (not old packages)
+  // Verify instructions reference blue-js-sdk/ai-path (not old packages)
   if (provision.instructions && provision.instructions.includes('sentinel-ai-connect')) {
     note('Payment', 'Instructions reference deprecated sentinel-ai-connect package', 3);
   }
@@ -291,15 +291,15 @@ console.log('\n--- PHASE 6: VPN CONNECTION ---\n');
 
 let connect, disconnect, status;
 
-// Page says: import { connect, disconnect } from 'blue-agent-connect'
+// Page says: import { connect, disconnect } from 'blue-js-sdk/ai-path'
 try {
-  const agentConnect = await import('blue-agent-connect');
+  const agentConnect = await import('blue-js-sdk/ai-path');
   connect = agentConnect.connect;
   disconnect = agentConnect.disconnect;
   status = agentConnect.status;
-  note('Connect', 'Imported connect/disconnect from blue-agent-connect');
+  note('Connect', 'Imported connect/disconnect from blue-js-sdk/ai-path');
 } catch (err) {
-  note('Connect', `Cannot import from blue-agent-connect: ${err.message}`, 10);
+  note('Connect', `Cannot import from blue-js-sdk/ai-path: ${err.message}`, 10);
   writeResults();
   process.exit(1);
 }
