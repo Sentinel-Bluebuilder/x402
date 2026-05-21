@@ -1,20 +1,22 @@
 /**
  * x402 Dashboard Server
  *
- * Serves the dashboard UI and provides an SSE endpoint to run
- * live E2E tests with real-time step streaming to the browser.
+ * Restructured to follow sentinel-node-tester patterns:
+ *   - EventEmitter-based SSE broadcasting on /api/events
+ *   - State object synced to all clients
+ *   - Separate /api/start, /api/stop, /api/state, /api/health routes
+ *   - broadcast(type, data) with log buffer
  *
  * Usage:
  *   cd x402/dashboard
  *   node server.mjs
- *
- * Reads .env from ../server/.env (shared config with x402 server)
  */
 
 import express from 'express';
 import { config } from 'dotenv';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { EventEmitter } from 'events';
 import { ethers } from 'ethers';
 import { createWalletClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -25,7 +27,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Load env from server/.env
 config({ path: resolve(__dirname, '../server/.env') });
 
-// Lazy-load these — they need node_modules from server/
+// ─── Lazy-loaded deps ───
+
 let ExactEvmScheme, x402Client, wrapFetchWithPayment;
 let createWallet, createRpcQueryClientWithFallback, rpcQueryFeeGrant, disconnectRpc;
 
@@ -37,7 +40,6 @@ async function loadDeps() {
   x402Client = fetchMod.x402Client;
   wrapFetchWithPayment = fetchMod.wrapFetchWithPayment;
 
-  // Sentinel SDK — relative path from dashboard/
   const sdkPath = resolve(__dirname, '../../Sentinel SDK/js-sdk');
   const aiPath = resolve(sdkPath, 'ai-path');
 
@@ -101,52 +103,199 @@ async function getBlockTime(height) {
   } catch { return null; }
 }
 
+// ─── EventEmitter + Broadcast (Node Tester pattern) ───
+
+const emitter = new EventEmitter();
+emitter.setMaxListeners(50);
+
+const LOG_BUFFER_MAX = 200;
+const logBuffer = [];
+
+function broadcast(type, data) {
+  const payload = { type, ...data, ts: new Date().toISOString() };
+  emitter.emit('update', payload);
+  if (type === 'log' || type === 'step' || type === 'tx' || type === 'progress') {
+    logBuffer.push(payload);
+    if (logBuffer.length > LOG_BUFFER_MAX) logBuffer.shift();
+  }
+}
+
+// ─── State Management ───
+
+function createState() {
+  return {
+    status: 'idle',        // idle | running | done | error
+    result: null,          // null | PASS | FAIL
+    stepCount: 0,
+    totalSteps: 16,
+    currentStep: null,
+    startedAt: null,
+    completedAt: null,
+    elapsed: null,
+    errorMessage: null,
+    stopRequested: false,
+
+    // Wallets
+    agentBase: null,
+    agentSentinel: null,
+    operatorBase: null,
+
+    // Financials
+    usdcPaid: null,
+    gasCost: '$0.00',
+
+    // Connection
+    sessionId: null,
+    protocol: null,
+    nodeAddress: null,
+    country: null,
+    city: null,
+    connectTime: null,
+    subscriptionId: null,
+    planId: null,
+
+    // Fee grant
+    feeGranter: null,
+    feeGrantInitial: null,
+    feeGrantRemaining: null,
+    feeGrantUsed: null,
+    feeGrantExpiration: null,
+    feeGrantMessages: [],
+
+    // Transactions
+    txs: [],
+
+    // Explorer links
+    links: [],
+
+    // Final balances
+    agentUsdcFinal: null,
+    operatorUsdcFinal: null,
+  };
+}
+
+let state = createState();
+
 // ─── Express App ───
 
 const app = express();
+app.use(express.json());
 app.use(express.static(__dirname));
 
-// Track running test to prevent concurrent runs
-let testRunning = false;
+// ─── SSE: Persistent event stream (Node Tester pattern) ───
 
-// ─── SSE: Run E2E Test ───
-
-app.get('/api/test/run', async (req, res) => {
-  if (testRunning) {
-    res.status(409).json({ error: 'A test is already running' });
-    return;
-  }
-  testRunning = true;
-
-  // SSE headers
+app.get('/api/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.flushHeaders();
 
-  function send(event, data) {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  // Send init with current state + log buffer
+  const initPayload = JSON.stringify({ type: 'init', state, logs: logBuffer });
+  res.write(`data: ${initPayload}\n\n`);
+
+  const onUpdate = (payload) => {
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  };
+
+  emitter.on('update', onUpdate);
+
+  req.on('close', () => {
+    emitter.removeListener('update', onUpdate);
+  });
+});
+
+// ─── State endpoint (fast, no SSE) ───
+
+app.get('/api/state', (req, res) => {
+  res.json({ state, logCount: logBuffer.length });
+});
+
+// ─── Health check ───
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    testStatus: state.status,
+    server: SERVER_URL,
+    sentinelRpc: SENTINEL_RPC,
+    hasOperatorKey: !!OPERATOR_KEY,
+  });
+});
+
+// ─── Start test ───
+
+app.post('/api/start', (req, res) => {
+  if (state.status === 'running') {
+    return res.status(409).json({ error: 'Test already running' });
   }
 
+  // Reset state
+  state = createState();
+  logBuffer.length = 0;
+  state.status = 'running';
+  state.startedAt = new Date().toISOString();
+  broadcast('state', { state });
+
+  // Run test in background
+  runE2ETest().catch((err) => {
+    state.status = 'error';
+    state.errorMessage = err.message;
+    state.result = 'FAIL';
+    state.completedAt = new Date().toISOString();
+    broadcast('state', { state });
+    broadcast('log', { msg: `FATAL: ${err.message}` });
+  });
+
+  res.json({ ok: true, message: 'Test started' });
+});
+
+// ─── Stop test ───
+
+app.post('/api/stop', (req, res) => {
+  if (state.status !== 'running') {
+    return res.status(400).json({ error: 'No test running' });
+  }
+  state.stopRequested = true;
+  broadcast('log', { msg: 'Stop requested — will halt after current step' });
+  broadcast('state', { state });
+  res.json({ ok: true });
+});
+
+// ─── E2E Test Runner ───
+
+async function runE2ETest() {
   let stepNum = 0;
+  let rpcClient = null;
+
   function emitStep(title, data = {}) {
     stepNum++;
+    state.stepCount = stepNum;
+    state.currentStep = title;
     const payload = { n: stepNum, title, time: new Date().toISOString(), ...data };
-    send('step', payload);
+    broadcast('step', payload);
+    broadcast('state', { state });
     return payload;
   }
 
   function emitTx(label, chain, hash, extra = {}) {
     const explorer = chain === 'Base' ? `${BASE_TX_URL}/${hash}` : `${SENT_TX_URL}/${hash}`;
-    send('tx', { label, chain, hash, explorer, ...extra });
+    const tx = { label, chain, hash, explorer, ...extra };
+    state.txs.push(tx);
+    broadcast('tx', tx);
   }
 
   function emitWallet(role, chain, address) {
     const explorer = chain === 'Base'
       ? `${BASE_ADDR_URL}/${address}`
       : `${SENT_ADDR_URL}/${address}`;
-    send('wallet', { role, chain, address, explorer });
+    broadcast('wallet', { role, chain, address, explorer });
+    state.links.push({ title: `${role}`, url: explorer, chain });
+  }
+
+  function log(msg) {
+    broadcast('log', { msg });
   }
 
   try {
@@ -157,11 +306,14 @@ app.get('/api/test/run', async (req, res) => {
     const provider = new ethers.JsonRpcProvider(BASE_RPC);
     const opWallet = new ethers.Wallet(OPERATOR_KEY, provider);
     const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, opWallet);
+    state.operatorBase = opWallet.address;
 
-    send('status', { phase: 'starting', message: 'Generating wallets...' });
+    log('Generating wallets...');
 
     // ── Step 1: EVM wallet ──
+    if (state.stopRequested) return;
     const evmWallet = ethers.Wallet.createRandom();
+    state.agentBase = evmWallet.address;
     emitStep('Generate fresh EVM wallet', {
       address: evmWallet.address,
       chain: 'Base (EIP-155:8453)',
@@ -170,7 +322,9 @@ app.get('/api/test/run', async (req, res) => {
     emitWallet('Agent (Base)', 'Base', evmWallet.address);
 
     // ── Step 2: Sentinel wallet ──
+    if (state.stopRequested) return;
     const sentWallet = await createWallet();
+    state.agentSentinel = sentWallet.address;
     emitStep('Generate fresh Sentinel wallet', {
       address: sentWallet.address,
       chain: 'Sentinel (sentinelhub-2)',
@@ -178,9 +332,10 @@ app.get('/api/test/run', async (req, res) => {
     });
     emitWallet('Agent (Sentinel)', 'Sentinel', sentWallet.address);
 
-    send('status', { phase: 'funding', message: 'Funding agent on Base...' });
+    log('Funding agent on Base...');
 
     // ── Step 3: Fund USDC ──
+    if (state.stopRequested) return;
     emitStep('Fund agent: USDC on Base', {
       from: opWallet.address,
       to: evmWallet.address,
@@ -189,53 +344,30 @@ app.get('/api/test/run', async (req, res) => {
     });
 
     const usdcTx = await usdc.transfer(evmWallet.address, 34000n);
-    send('progress', { step: stepNum, message: `TX submitted: ${usdcTx.hash}` });
+    log(`TX submitted: ${usdcTx.hash}`);
     const usdcRcpt = await usdcTx.wait(1);
 
-    emitTx('USDC Funding (operator → agent)', 'Base', usdcTx.hash, {
+    emitTx('USDC Funding (operator -> agent)', 'Base', usdcTx.hash, {
       block: usdcRcpt.blockNumber,
       from: opWallet.address,
       to: evmWallet.address,
       amount: '0.034 USDC',
     });
 
-    // ── Step 4: Fund ETH ──
-    emitStep('Fund agent: ETH gas on Base', {
-      from: opWallet.address,
-      to: evmWallet.address,
-      amount: '0.00005 ETH',
-      type: 'base-tx',
-    });
-
-    const ethTx = await opWallet.sendTransaction({
-      to: evmWallet.address,
-      value: ethers.parseEther('0.00005'),
-    });
-    send('progress', { step: stepNum, message: `TX submitted: ${ethTx.hash}` });
-    const ethRcpt = await ethTx.wait(1);
-
-    emitTx('ETH Gas Funding (operator → agent)', 'Base', ethTx.hash, {
-      block: ethRcpt.blockNumber,
-      from: opWallet.address,
-      to: evmWallet.address,
-      amount: '0.00005 ETH',
-    });
-
-    // ── Step 5: Verify funded ──
-    const [aEth, aUsdc] = await Promise.all([
-      provider.getBalance(evmWallet.address),
-      usdc.balanceOf(evmWallet.address),
-    ]);
+    // ── Step 4: Verify funded ──
+    if (state.stopRequested) return;
+    const aUsdc = await usdc.balanceOf(evmWallet.address);
     emitStep('Verify agent funded', {
       usdc: ethers.formatUnits(aUsdc, 6),
-      eth: ethers.formatEther(aEth),
+      eth: 'N/A — agent never needs ETH (EIP-3009 = 0 gas)',
       p2p: '0.00 (fee-granted)',
       type: 'read',
     });
 
-    send('status', { phase: 'payment', message: 'x402 payment flow...' });
+    log('x402 payment flow...');
 
-    // ── Step 6: POST → 402 ──
+    // ── Step 5: POST -> 402 ──
+    if (state.stopRequested) return;
     const res402 = await fetch(`${SERVER_URL}/vpn/connect/1day`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -256,7 +388,7 @@ app.get('/api/test/run', async (req, res) => {
       } catch { /* ok */ }
     }
 
-    emitStep('POST /vpn/connect/1day → HTTP 402', {
+    emitStep('POST /vpn/connect/1day -> HTTP 402', {
       status: `${res402.status} ${res402.statusText}`,
       scheme: paymentInfo.scheme || 'exact',
       network: paymentInfo.network || 'eip155:8453',
@@ -267,9 +399,10 @@ app.get('/api/test/run', async (req, res) => {
 
     if (res402.status !== 402) throw new Error(`Expected 402, got ${res402.status}`);
 
-    // ── Step 7: x402 payment ──
+    // ── Step 6: x402 payment ──
+    if (state.stopRequested) return;
     const payT0 = Date.now();
-    emitStep('x402 payment: sign EIP-3009 → settle → provision', {
+    emitStep('x402 payment: sign EIP-3009 -> settle -> provision', {
       action: 'Agent signs, facilitator settles USDC, server provisions on Sentinel',
       type: 'both',
     });
@@ -301,7 +434,8 @@ app.get('/api/test/run', async (req, res) => {
     }
 
     const elapsed = ((Date.now() - payT0) / 1000).toFixed(1);
-    send('progress', { step: stepNum, message: `Completed in ${elapsed}s` });
+    state.usdcPaid = '$0.033';
+    log(`Payment completed in ${elapsed}s`);
 
     // Check settlement TX
     const settleHeader = paidRes.headers.get('x-payment-response');
@@ -318,8 +452,13 @@ app.get('/api/test/run', async (req, res) => {
       } catch { /* ok */ }
     }
 
-    // ── Step 8: Provision result ──
+    // ── Step 7: Provision result ──
+    if (state.stopRequested) return;
     const provision = await paidRes.json();
+
+    state.subscriptionId = provision.subscriptionId;
+    state.planId = provision.planId;
+    state.feeGranter = provision.feeGranter;
 
     emitStep('Provisioning confirmed (HTTP 200)', {
       provisioned: provision.provisioned,
@@ -332,17 +471,17 @@ app.get('/api/test/run', async (req, res) => {
     });
 
     if (provision.sentinelTxHash) {
-      emitTx('Provision (MsgShareSubscription + MsgGrantAllowance)', 'Sentinel', provision.sentinelTxHash, {
+      emitTx('Provision (ShareSub + FeeGrant)', 'Sentinel', provision.sentinelTxHash, {
         from: provision.feeGranter,
         forAgent: sentWallet.address,
         subscription: provision.subscriptionId,
       });
     }
 
-    send('status', { phase: 'sentinel', message: 'Querying Sentinel chain...' });
+    log('Querying Sentinel chain...');
 
-    // ── Step 9: Fee grant via RPC ──
-    let rpcClient = null;
+    // ── Step 8: Fee grant via RPC ──
+    if (state.stopRequested) return;
     let feeGrantData = {};
     try {
       rpcClient = await createRpcQueryClientWithFallback();
@@ -364,6 +503,11 @@ app.get('/api/test/run', async (req, res) => {
       }
     } catch { /* non-critical */ }
 
+    state.feeGrantInitial = feeGrantData.remaining || '5000000';
+    state.feeGrantRemaining = feeGrantData.remaining || '5000000';
+    state.feeGrantExpiration = feeGrantData.expiration || provision.expiresAt;
+    state.feeGrantMessages = feeGrantData.allowedMessages || [];
+
     emitStep('Query fee grant via Sentinel RPC', {
       granter: feeGrantData.granter || provision.feeGranter,
       grantee: sentWallet.address,
@@ -373,7 +517,7 @@ app.get('/api/test/run', async (req, res) => {
       type: 'sentinel-rpc',
     });
 
-    send('feegrant', {
+    broadcast('feegrant', {
       granter: feeGrantData.granter || provision.feeGranter,
       grantee: sentWallet.address,
       remaining: feeGrantData.remaining || '5000000',
@@ -382,19 +526,21 @@ app.get('/api/test/run', async (req, res) => {
       allowedMessages: feeGrantData.allowedMessages || [],
     });
 
-    send('status', { phase: 'connecting', message: 'Connecting to VPN node...' });
+    log('Connecting to VPN node...');
 
-    // ── Step 10: Connect VPN ──
+    // ── Step 9: Connect VPN ──
+    if (state.stopRequested) return;
     const vpnT0 = Date.now();
     emitStep('Connect to VPN (fee-granted session)', {
-      action: 'MsgStartSessionRequest → WireGuard handshake → tunnel',
+      action: 'MsgStartSessionRequest -> WireGuard handshake -> tunnel',
       gas: 'ZERO — fee grant covers all gas',
       type: 'sentinel-tx',
     });
 
     let vpnResult = null;
     for (const nodeAddress of PLAN_42_NODES) {
-      send('progress', { step: stepNum, message: `Trying node: ${nodeAddress.slice(0, 20)}...` });
+      if (state.stopRequested) return;
+      log(`Trying node: ${nodeAddress.slice(0, 20)}...`);
       try {
         const connectMod = await import(`file://${resolve(__dirname, '../../Sentinel SDK/js-sdk/ai-path/connect.js')}`);
         vpnResult = await connectMod.connect({
@@ -404,12 +550,12 @@ app.get('/api/test/run', async (req, res) => {
           feeGranter: provision.feeGranter,
           timeout: 90000,
           onProgress: (stage, msg) => {
-            send('progress', { step: stepNum, message: `[${stage}] ${msg}` });
+            log(`[${stage}] ${msg}`);
           },
         });
         break;
       } catch (err) {
-        send('progress', { step: stepNum, message: `FAILED: ${err.message}` });
+        log(`FAILED: ${err.message}`);
         if (['FEE_GRANT_NOT_FOUND', 'FEE_GRANT_EXPIRED', 'FEE_GRANT_EXHAUSTED', 'INSUFFICIENT_BALANCE'].includes(err.code)) {
           throw err;
         }
@@ -419,8 +565,15 @@ app.get('/api/test/run', async (req, res) => {
     if (!vpnResult) throw new Error('All nodes failed');
 
     const connectTime = ((Date.now() - vpnT0) / 1000).toFixed(1);
+    state.connectTime = `${connectTime}s`;
 
-    // ── Step 11: Connected ──
+    // ── Step 10: Connected ──
+    state.sessionId = vpnResult.sessionId;
+    state.protocol = vpnResult.protocol;
+    state.nodeAddress = vpnResult.nodeAddress;
+    state.country = vpnResult.country;
+    state.city = vpnResult.city;
+
     emitStep('VPN connected', {
       sessionId: vpnResult.sessionId,
       protocol: vpnResult.protocol,
@@ -431,7 +584,7 @@ app.get('/api/test/run', async (req, res) => {
       type: 'connected',
     });
 
-    send('connection', {
+    broadcast('connection', {
       sessionId: vpnResult.sessionId,
       protocol: vpnResult.protocol,
       node: vpnResult.nodeAddress,
@@ -440,7 +593,8 @@ app.get('/api/test/run', async (req, res) => {
       connectTime,
     });
 
-    // ── Step 12: Session start TX ──
+    // ── Step 11: Session start TX ──
+    if (state.stopRequested) return;
     await new Promise(r => setTimeout(r, 3000));
     const startQuery = `message.action='/sentinel.subscription.v3.MsgStartSessionRequest' AND message.sender='${sentWallet.address}'`;
     const startTxResult = await searchSentinelTx(startQuery);
@@ -452,7 +606,7 @@ app.get('/api/test/run', async (req, res) => {
         chainTime: blockTime,
         type: 'sentinel-rpc',
       });
-      emitTx('Start Session (MsgStartSessionRequest, fee-granted)', 'Sentinel', startTxResult.hash, {
+      emitTx('Start Session (fee-granted)', 'Sentinel', startTxResult.hash, {
         block: startTxResult.height,
         chainTime: blockTime,
         from: sentWallet.address,
@@ -463,7 +617,8 @@ app.get('/api/test/run', async (req, res) => {
       emitStep('Session start TX — not yet indexed', { type: 'sentinel-rpc' });
     }
 
-    // ── Step 13: Verify tunnel ──
+    // ── Step 12: Verify tunnel ──
+    if (state.stopRequested) return;
     const connectMod = await import(`file://${resolve(__dirname, '../../Sentinel SDK/js-sdk/ai-path/connect.js')}`);
     const st = connectMod.status();
     emitStep('Verify tunnel active', {
@@ -472,9 +627,10 @@ app.get('/api/test/run', async (req, res) => {
       type: 'local',
     });
 
-    send('status', { phase: 'disconnecting', message: 'Disconnecting VPN...' });
+    log('Disconnecting VPN...');
 
-    // ── Step 14: Disconnect ──
+    // ── Step 13: Disconnect ──
+    if (state.stopRequested) return;
     emitStep('Disconnect + end session (fee-granted)', {
       action: 'MsgCancelSessionRequest (fire-and-forget)',
       gas: 'ZERO — fee grant covers gas',
@@ -484,7 +640,7 @@ app.get('/api/test/run', async (req, res) => {
     await connectMod.disconnect();
     await new Promise(r => setTimeout(r, 8000));
 
-    // ── Step 15: Session end TX ──
+    // ── Step 14: Session end TX ──
     const endQuery = `message.action='/sentinel.session.v3.MsgCancelSessionRequest' AND message.sender='${sentWallet.address}'`;
     const endTxResult = await searchSentinelTx(endQuery);
     if (endTxResult) {
@@ -495,7 +651,7 @@ app.get('/api/test/run', async (req, res) => {
         chainTime: blockTime,
         type: 'sentinel-rpc',
       });
-      emitTx('End Session (MsgCancelSessionRequest, fee-granted)', 'Sentinel', endTxResult.hash, {
+      emitTx('End Session (fee-granted)', 'Sentinel', endTxResult.hash, {
         block: endTxResult.height,
         chainTime: blockTime,
         from: sentWallet.address,
@@ -506,7 +662,7 @@ app.get('/api/test/run', async (req, res) => {
       emitStep('Session end TX — not yet indexed', { type: 'sentinel-rpc' });
     }
 
-    // ── Step 16: Post-disconnect fee grant ──
+    // ── Step 15: Post-disconnect fee grant ──
     let remainingAfter = null;
     try {
       if (!rpcClient) rpcClient = await createRpcQueryClientWithFallback();
@@ -524,6 +680,9 @@ app.get('/api/test/run', async (req, res) => {
       ? parseInt(feeGrantData.remaining) - parseInt(remainingAfter)
       : null;
 
+    state.feeGrantRemaining = remainingAfter;
+    state.feeGrantUsed = used;
+
     emitStep('Post-disconnect fee grant', {
       before: `${feeGrantData.remaining || '?'} udvpn`,
       after: `${remainingAfter || '?'} udvpn`,
@@ -532,55 +691,45 @@ app.get('/api/test/run', async (req, res) => {
       type: 'sentinel-rpc',
     });
 
-    send('feegrant_after', {
-      remaining: remainingAfter,
-      used,
-    });
-
-    // ── Step 17: Final balances ──
-    const [fEth, fUsdc, oEth, oUsdc] = await Promise.all([
-      provider.getBalance(evmWallet.address),
+    // ── Step 16: Final balances ──
+    const [fUsdc, oUsdc] = await Promise.all([
       usdc.balanceOf(evmWallet.address),
-      provider.getBalance(opWallet.address),
       usdc.balanceOf(opWallet.address),
     ]);
 
-    emitStep('Final balances', {
-      agentUsdc: ethers.formatUnits(fUsdc, 6),
-      agentEth: ethers.formatEther(fEth),
-      operatorUsdc: ethers.formatUnits(oUsdc, 6),
-      operatorEth: ethers.formatEther(oEth),
-      type: 'read',
-    });
+    state.agentUsdcFinal = ethers.formatUnits(fUsdc, 6);
+    state.operatorUsdcFinal = ethers.formatUnits(oUsdc, 6);
 
-    send('balances', {
-      agent: { usdc: ethers.formatUnits(fUsdc, 6), eth: ethers.formatEther(fEth) },
-      operator: { usdc: ethers.formatUnits(oUsdc, 6), eth: ethers.formatEther(oEth) },
+    emitStep('Final balances', {
+      agentUsdc: state.agentUsdcFinal,
+      operatorUsdc: state.operatorUsdcFinal,
+      note: 'Agent paid 0 gas on both chains (EIP-3009 on Base, fee grant on Sentinel)',
+      type: 'read',
     });
 
     try { disconnectRpc(); } catch { /* ok */ }
 
-    send('complete', { result: 'PASS', steps: stepNum, time: new Date().toISOString() });
+    // ── Complete ──
+    state.status = 'done';
+    state.result = 'PASS';
+    state.completedAt = new Date().toISOString();
+    state.elapsed = ((new Date(state.completedAt) - new Date(state.startedAt)) / 1000).toFixed(0);
+    broadcast('state', { state });
+    log(`TEST PASSED — ${stepNum} steps in ${state.elapsed}s`);
 
   } catch (err) {
-    send('error', { message: err.message, step: stepNum });
-    send('complete', { result: 'FAIL', steps: stepNum, error: err.message });
-  } finally {
-    testRunning = false;
-    res.end();
+    state.status = 'error';
+    state.result = 'FAIL';
+    state.errorMessage = err.message;
+    state.completedAt = new Date().toISOString();
+    state.elapsed = ((new Date(state.completedAt) - new Date(state.startedAt)) / 1000).toFixed(0);
+    broadcast('state', { state });
+    log(`TEST FAILED: ${err.message}`);
+    try { disconnectRpc(); } catch { /* ok */ }
   }
-});
+}
 
-// ── Health check ──
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    server: SERVER_URL,
-    testRunning,
-    sentinelRpc: SENTINEL_RPC,
-    hasOperatorKey: !!OPERATOR_KEY,
-  });
-});
+// ─── Start ───
 
 app.listen(PORT, () => {
   console.log(`\n  x402 Dashboard`);
@@ -589,5 +738,6 @@ app.listen(PORT, () => {
   console.log(`  x402 Server: ${SERVER_URL}`);
   console.log(`  Sentinel:    ${SENTINEL_RPC}`);
   console.log(`  Operator:    ${OPERATOR_KEY ? 'loaded' : 'MISSING'}`);
-  console.log(`  Test API:    http://localhost:${PORT}/api/test/run (SSE)\n`);
+  console.log(`  Events:      http://localhost:${PORT}/api/events (SSE)`);
+  console.log(`  Start test:  POST http://localhost:${PORT}/api/start\n`);
 });

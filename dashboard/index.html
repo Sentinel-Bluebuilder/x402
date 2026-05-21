@@ -3,223 +3,581 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>x402 — E2E Flow Dashboard</title>
+<title>x402 Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0e14;
-    --bg-card: #111820;
-    --bg-card-hover: #151d28;
-    --bg-elevated: #1a2332;
-    --border: #1e2a3a;
-    --border-bright: #2a3a4e;
-    --text: #c8d6e5;
-    --text-dim: #6b7d93;
-    --text-bright: #e8f0f8;
-    --blue: #1E88E5;
-    --blue-dim: rgba(30, 136, 229, 0.15);
-    --blue-glow: rgba(30, 136, 229, 0.3);
-    --green: #00c853;
-    --green-dim: rgba(0, 200, 83, 0.12);
-    --orange: #ff9100;
-    --orange-dim: rgba(255, 145, 0, 0.12);
-    --red: #ff5252;
-    --purple: #b388ff;
-    --purple-dim: rgba(179, 136, 255, 0.12);
-    --cyan: #00e5ff;
-    --sentinel: #1E88E5;
-    --base: #0052ff;
-    --base-bright: #3b7dff;
-    --mono: 'JetBrains Mono', 'Fira Code', monospace;
-    --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+    --bg-base: #080808;
+    --bg-surface: #0e0e0e;
+    --glass-bg: rgba(16, 16, 16, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.07);
+    --glass-border-hover: rgba(255, 255, 255, 0.12);
+    --text-primary: #f0f0f0;
+    --text-secondary: #888;
+    --text-dim: #555;
+    --accent-blue: #1E88E5;
+    --accent-blue-dim: rgba(30, 136, 229, 0.15);
+    --accent-blue-glow: rgba(30, 136, 229, 0.25);
+    --accent-green: #00c853;
+    --accent-green-dim: rgba(0, 200, 83, 0.12);
+    --accent-red: #ff1744;
+    --accent-red-dim: rgba(255, 23, 68, 0.12);
+    --accent-orange: #ff9100;
+    --accent-orange-dim: rgba(255, 145, 0, 0.12);
+    --accent-purple: #b388ff;
+    --accent-purple-dim: rgba(179, 136, 255, 0.12);
+    --base-blue: #0052ff;
+    --base-blue-bright: #3b7dff;
+    --sentinel-blue: #1E88E5;
+    --font-display: 'Outfit', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 4px;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    line-height: 1.6;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    line-height: 1.5;
     min-height: 100vh;
     overflow-x: hidden;
   }
 
-  /* ─── Background texture ─── */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background:
-      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(30,136,229,0.06) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0,82,255,0.04) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
+  /* ─── Scrollbar ─── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+  /* ─── Glass panel base ─── */
+  .glass {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(12px);
   }
 
-  /* ─── Grid overlay ─── */
-  body::after {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-image:
-      linear-gradient(rgba(30,136,229,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(30,136,229,0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
-    pointer-events: none;
-    z-index: 0;
+  .glass:hover {
+    border-color: var(--glass-border-hover);
   }
 
-  .container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 40px 24px;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* ─── Header ─── */
+  /* ─── Header (sticky) ─── */
   .header {
-    text-align: center;
-    margin-bottom: 48px;
-    padding-bottom: 32px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .header-badge {
-    display: inline-flex;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(8, 8, 8, 0.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 12px 24px;
+    display: flex;
     align-items: center;
-    gap: 8px;
-    background: var(--blue-dim);
-    border: 1px solid rgba(30,136,229,0.3);
-    border-radius: 20px;
-    padding: 6px 16px;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--blue);
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-bottom: 16px;
+    justify-content: space-between;
   }
 
-  .header-badge .dot {
-    width: 6px; height: 6px;
-    background: var(--green);
-    border-radius: 50%;
-    animation: pulse 2s infinite;
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
   }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  .header h1 {
-    font-family: var(--mono);
-    font-size: 36px;
+  .header-title {
+    font-family: var(--font-mono);
+    font-size: 18px;
     font-weight: 700;
-    color: var(--text-bright);
     letter-spacing: -0.5px;
   }
 
-  .header h1 span { color: var(--blue); }
+  .header-title span { color: var(--accent-blue); }
 
-  .header-meta {
-    display: flex;
-    justify-content: center;
-    gap: 32px;
-    margin-top: 16px;
-    font-size: 14px;
-    color: var(--text-dim);
+  .pulse-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    position: relative;
   }
 
-  .header-meta strong {
-    color: var(--text);
+  .pulse-dot.idle { background: var(--text-dim); }
+  .pulse-dot.running {
+    background: var(--accent-green);
+    animation: pulse 1.5s infinite;
+  }
+  .pulse-dot.done { background: var(--accent-green); }
+  .pulse-dot.error { background: var(--accent-red); }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(0, 200, 83, 0); }
+  }
+
+  .header-status {
+    font-size: 12px;
+    color: var(--text-secondary);
     font-weight: 500;
   }
 
-  /* ─── Stats bar ─── */
-  .stats-bar {
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .header-chip {
+    padding: 4px 10px;
+    border-radius: var(--radius-xs);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--glass-border);
+  }
+
+  /* ─── Main layout ─── */
+  .main {
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 20px 24px;
+  }
+
+  /* ─── Controls bar ─── */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 18px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--glass-border);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn:hover { border-color: var(--glass-border-hover); color: var(--text-primary); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-start {
+    background: var(--accent-green);
+    border-color: var(--accent-green);
+    color: #000;
+    font-weight: 700;
+  }
+
+  .btn-start:hover:not(:disabled) {
+    background: #00e676;
+    box-shadow: 0 0 20px rgba(0, 200, 83, 0.25);
+  }
+
+  .btn-start.loading {
+    background: var(--accent-orange);
+    border-color: var(--accent-orange);
+    animation: btn-pulse 1.5s infinite;
+  }
+
+  @keyframes btn-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 145, 0, 0.3); }
+    50% { box-shadow: 0 0 0 6px rgba(255, 145, 0, 0); }
+  }
+
+  .btn-stop {
+    border-color: rgba(255, 23, 68, 0.3);
+    color: var(--accent-red);
+  }
+
+  .btn-stop:hover:not(:disabled) {
+    background: var(--accent-red-dim);
+    border-color: var(--accent-red);
+  }
+
+  .controls-spacer { flex: 1; }
+
+  .controls-timer {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-blue);
+    min-width: 50px;
+    text-align: right;
+  }
+
+  /* ─── Stats grid ─── */
+  .stats {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 16px;
-    margin-bottom: 48px;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
   }
 
   .stat-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
+    padding: 16px;
     text-align: center;
-    transition: border-color 0.2s, transform 0.2s;
-  }
-
-  .stat-card:hover {
-    border-color: var(--border-bright);
-    transform: translateY(-2px);
   }
 
   .stat-label {
-    font-size: 11px;
+    font-size: 10px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
     color: var(--text-dim);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .stat-value {
-    font-family: var(--mono);
-    font-size: 28px;
+    font-family: var(--font-mono);
+    font-size: 26px;
     font-weight: 700;
-    color: var(--text-bright);
+    color: var(--text-primary);
+    line-height: 1.2;
   }
 
-  .stat-value.green { color: var(--green); }
-  .stat-value.blue { color: var(--blue); }
-  .stat-value.orange { color: var(--orange); }
-
   .stat-sub {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-dim);
     margin-top: 4px;
   }
 
-  /* ─── Section titles ─── */
-  .section-title {
-    font-family: var(--mono);
-    font-size: 14px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--blue);
-    margin-bottom: 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  .stat-value.green { color: var(--accent-green); }
+  .stat-value.blue { color: var(--accent-blue); }
+  .stat-value.orange { color: var(--accent-orange); }
+
+  /* ─── Progress bar ─── */
+  .progress-section {
+    margin-bottom: 20px;
   }
 
-  .section-title::after {
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .progress-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .progress-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .progress-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  .progress-fill.done {
+    background: var(--accent-green);
+  }
+
+  .progress-fill.error {
+    background: var(--accent-red);
+  }
+
+  .current-action {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    min-height: 16px;
+  }
+
+  /* ─── Data grid: two columns ─── */
+  .data-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  /* ─── Steps table ─── */
+  .steps-panel {
+    overflow: hidden;
+  }
+
+  .steps-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .steps-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+  }
+
+  .steps-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .steps-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .steps-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .steps-table th {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    text-align: left;
+    padding: 8px 12px;
+    background: rgba(16, 16, 16, 0.95);
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .steps-table-wrapper {
+    max-height: 520px;
+    overflow-y: auto;
+  }
+
+  .steps-table td {
+    padding: 10px 12px;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    vertical-align: middle;
+  }
+
+  .steps-table tr { transition: background 0.1s; }
+
+  .steps-table tr:hover {
+    background: rgba(255,255,255,0.02);
+  }
+
+  .steps-table tr.current {
+    background: rgba(30, 136, 229, 0.06);
+    border-left: 3px solid var(--accent-blue);
+  }
+
+  .steps-table tr.done { opacity: 0.65; }
+
+  .step-num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-blue);
+    width: 36px;
+  }
+
+  .step-time {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    width: 70px;
+  }
+
+  .step-desc {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .step-badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  .badge-local { background: rgba(255,255,255,0.05); color: var(--text-dim); }
+  .badge-base { background: rgba(0, 82, 255, 0.12); color: var(--base-blue-bright); }
+  .badge-sentinel { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .badge-x402 { background: var(--accent-purple-dim); color: var(--accent-purple); }
+  .badge-both { background: var(--accent-purple-dim); color: var(--accent-purple); }
+  .badge-connected { background: var(--accent-green-dim); color: var(--accent-green); }
+  .badge-read { background: rgba(255,255,255,0.05); color: var(--text-secondary); }
+
+  @keyframes row-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .steps-table tr.new-row {
+    animation: row-in 0.3s ease;
+  }
+
+  /* ─── Live log ─── */
+  .log-panel {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .log-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+  }
+
+  .log-body {
+    flex: 1;
+    max-height: 520px;
+    overflow-y: auto;
+    padding: 8px 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  .log-entry {
+    padding: 2px 16px;
+    color: var(--text-dim);
+    border-left: 2px solid transparent;
+    animation: log-in 0.2s ease;
+  }
+
+  @keyframes log-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .log-entry.log-ok { color: var(--accent-green); border-left-color: var(--accent-green); }
+  .log-entry.log-warn { color: var(--accent-orange); border-left-color: var(--accent-orange); }
+  .log-entry.log-err { color: var(--accent-red); border-left-color: var(--accent-red); }
+
+  .log-time {
+    color: var(--text-dim);
+    margin-right: 8px;
+    opacity: 0.6;
+  }
+
+  /* ─── TX pills ─── */
+  .tx-section {
+    margin-bottom: 20px;
+  }
+
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-label::after {
     content: '';
     flex: 1;
     height: 1px;
-    background: linear-gradient(90deg, var(--border-bright), transparent);
+    background: var(--glass-border);
   }
 
+  .tx-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tx-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    cursor: pointer;
+  }
+
+  .tx-pill:hover {
+    border-color: var(--accent-blue);
+    color: var(--text-primary);
+  }
+
+  .tx-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .tx-dot.base { background: var(--base-blue-bright); }
+  .tx-dot.sentinel { background: var(--sentinel-blue); }
+
   /* ─── Wallets ─── */
-  .wallets {
+  .wallets-section {
+    margin-bottom: 20px;
+  }
+
+  .wallets-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 48px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
   }
 
   .wallet-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
+    padding: 16px;
     position: relative;
     overflow: hidden;
   }
@@ -228,38 +586,40 @@
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
-    height: 3px;
+    height: 2px;
   }
 
-  .wallet-card.base::before { background: var(--base-bright); }
-  .wallet-card.sentinel::before { background: var(--sentinel); }
-  .wallet-card.operator::before { background: var(--orange); }
+  .wallet-card.base-w::before { background: var(--base-blue-bright); }
+  .wallet-card.sentinel-w::before { background: var(--sentinel-blue); }
+  .wallet-card.operator-w::before { background: var(--accent-orange); }
 
   .wallet-role {
-    font-size: 11px;
+    font-size: 10px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
     color: var(--text-dim);
     margin-bottom: 4px;
   }
 
-  .wallet-chain {
+  .wallet-chain-tag {
     display: inline-block;
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    margin-bottom: 12px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+    margin-bottom: 8px;
   }
 
-  .wallet-chain.base { background: rgba(0,82,255,0.15); color: var(--base-bright); }
-  .wallet-chain.sentinel { background: var(--blue-dim); color: var(--blue); }
-  .wallet-chain.multi { background: var(--orange-dim); color: var(--orange); }
+  .tag-base { background: rgba(0,82,255,0.12); color: var(--base-blue-bright); }
+  .tag-sentinel { background: var(--accent-blue-dim); color: var(--accent-blue); }
+  .tag-multi { background: var(--accent-orange-dim); color: var(--accent-orange); }
 
   .wallet-addr {
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--text-bright);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
     word-break: break-all;
     line-height: 1.5;
   }
@@ -267,39 +627,235 @@
   .wallet-addr a {
     color: inherit;
     text-decoration: none;
-    border-bottom: 1px dashed var(--border-bright);
-    transition: border-color 0.2s;
+    border-bottom: 1px dashed rgba(255,255,255,0.1);
+    transition: color 0.15s;
   }
 
-  .wallet-addr a:hover { border-color: var(--blue); color: var(--blue); }
+  .wallet-addr a:hover { color: var(--accent-blue); }
 
   .wallet-balance {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-    font-family: var(--mono);
-    font-size: 12px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--glass-border);
+    font-family: var(--font-mono);
+    font-size: 11px;
     color: var(--text-dim);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .wallet-balance .amt { color: var(--text-secondary); font-weight: 500; }
+
+  /* ─── Fee Grant ─── */
+  .feegrant-section {
+    margin-bottom: 20px;
+  }
+
+  .feegrant-card {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+  }
+
+  .fg-col h3 {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .fg-meter {
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 10px 0;
+  }
+
+  .fg-meter-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-green));
+    transition: width 0.5s ease;
+  }
+
+  .fg-stat {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 3px 0;
+  }
+
+  .fg-stat-label { color: var(--text-dim); }
+  .fg-stat-val { font-family: var(--font-mono); color: var(--text-secondary); font-weight: 500; }
+
+  .fg-msg-list {
+    list-style: none;
     display: flex;
     flex-direction: column;
     gap: 4px;
   }
 
-  .wallet-balance .amt {
-    color: var(--text);
+  .fg-msg-list li {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+    padding: 5px 8px;
+    background: rgba(255,255,255,0.03);
+    border-radius: var(--radius-xs);
+    border-left: 2px solid var(--accent-blue);
+  }
+
+  /* ─── Connection card ─── */
+  .connection-section {
+    margin-bottom: 20px;
+  }
+
+  .conn-card {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .conn-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .conn-dot {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--accent-green-dim);
+    border: 2px solid var(--accent-green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .conn-dot.pending {
+    border-color: var(--text-dim);
+    background: rgba(255,255,255,0.03);
+  }
+
+  .conn-status-text {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent-green);
+  }
+
+  .conn-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+  }
+
+  .conn-field-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+  }
+
+  .conn-field-val {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-secondary);
     font-weight: 500;
+  }
+
+  .conn-timing {
+    text-align: center;
+  }
+
+  .conn-timing-val {
+    font-family: var(--font-mono);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .conn-timing-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* ─── Pricing ─── */
+  .pricing-section {
+    margin-bottom: 20px;
+  }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .price-card {
+    padding: 20px;
+    text-align: center;
+    transition: border-color 0.15s;
+  }
+
+  .price-card.active {
+    border-color: var(--accent-blue);
+    background: rgba(30, 136, 229, 0.04);
+  }
+
+  .price-duration {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .price-amount {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .price-amount .currency {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  .price-endpoint {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 6px;
   }
 
   /* ─── Flow diagram ─── */
   .flow-section {
-    margin-bottom: 48px;
+    margin-bottom: 20px;
   }
 
   .flow-diagram {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 32px;
+    padding: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -311,719 +867,324 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    min-width: 120px;
-    position: relative;
+    gap: 6px;
+    min-width: 100px;
   }
 
   .flow-icon {
-    width: 56px; height: 56px;
-    border-radius: 14px;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 20px;
     border: 2px solid;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s;
   }
 
-  .flow-icon:hover {
-    transform: scale(1.1);
-  }
+  .flow-icon:hover { transform: scale(1.08); }
 
-  .flow-icon.agent { background: var(--blue-dim); border-color: var(--blue); }
-  .flow-icon.server { background: var(--purple-dim); border-color: var(--purple); }
-  .flow-icon.base-chain { background: rgba(0,82,255,0.12); border-color: var(--base-bright); }
-  .flow-icon.sentinel-chain { background: var(--green-dim); border-color: var(--green); }
-  .flow-icon.node { background: var(--orange-dim); border-color: var(--orange); }
+  .flow-icon.agent { background: var(--accent-blue-dim); border-color: var(--accent-blue); }
+  .flow-icon.server { background: var(--accent-purple-dim); border-color: var(--accent-purple); }
+  .flow-icon.base-chain { background: rgba(0,82,255,0.1); border-color: var(--base-blue-bright); }
+  .flow-icon.sentinel-chain { background: var(--accent-green-dim); border-color: var(--accent-green); }
+  .flow-icon.vpn-node { background: var(--accent-orange-dim); border-color: var(--accent-orange); }
 
   .flow-label {
-    font-family: var(--mono);
-    font-size: 11px;
+    font-family: var(--font-mono);
+    font-size: 10px;
     font-weight: 600;
-    color: var(--text-bright);
-    text-align: center;
+    color: var(--text-primary);
   }
 
   .flow-sub {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-dim);
     text-align: center;
-    max-width: 100px;
+    max-width: 90px;
   }
 
   .flow-arrow {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 0 8px;
-    min-width: 80px;
+    gap: 3px;
+    padding: 0 6px;
+    min-width: 70px;
+  }
+
+  .flow-arrow-text {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--text-dim);
+    text-align: center;
+    white-space: nowrap;
   }
 
   .flow-arrow-line {
     width: 100%;
-    height: 2px;
-    background: var(--border-bright);
+    height: 1px;
+    background: rgba(255,255,255,0.12);
     position: relative;
   }
 
   .flow-arrow-line::after {
     content: '';
     position: absolute;
-    right: -1px; top: -4px;
-    border: 5px solid transparent;
-    border-left: 6px solid var(--border-bright);
-  }
-
-  .flow-arrow-text {
-    font-family: var(--mono);
-    font-size: 9px;
-    color: var(--text-dim);
-    text-align: center;
-    white-space: nowrap;
-  }
-
-  /* ─── Steps timeline ─── */
-  .steps-section {
-    margin-bottom: 48px;
-  }
-
-  .steps-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2px;
-  }
-
-  .step {
-    display: grid;
-    grid-template-columns: 48px 90px 1fr auto;
-    gap: 16px;
-    align-items: center;
-    padding: 14px 20px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    transition: background 0.15s, border-color 0.15s;
-    cursor: default;
-  }
-
-  .step:hover {
-    background: var(--bg-card-hover);
-    border-color: var(--border-bright);
-  }
-
-  .step-num {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--blue);
-    text-align: center;
-  }
-
-  .step-time {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-
-  .step-desc {
-    font-size: 14px;
-    color: var(--text);
-  }
-
-  .step-desc strong { color: var(--text-bright); font-weight: 600; }
-
-  .step-chain {
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 3px 10px;
-    border-radius: 4px;
-    white-space: nowrap;
-  }
-
-  .step-chain.base { background: rgba(0,82,255,0.12); color: var(--base-bright); }
-  .step-chain.sentinel { background: var(--blue-dim); color: var(--blue); }
-  .step-chain.local { background: rgba(255,255,255,0.05); color: var(--text-dim); }
-  .step-chain.both { background: var(--purple-dim); color: var(--purple); }
-
-  .step.highlight {
-    border-color: var(--blue);
-    background: rgba(30,136,229,0.05);
-  }
-
-  .step.highlight .step-num { color: var(--text-bright); }
-
-  /* ─── Transactions ─── */
-  .tx-section {
-    margin-bottom: 48px;
-  }
-
-  .tx-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-    gap: 16px;
-  }
-
-  .tx-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
-    position: relative;
-    overflow: hidden;
-    transition: border-color 0.2s, transform 0.2s;
-  }
-
-  .tx-card:hover {
-    border-color: var(--border-bright);
-    transform: translateY(-2px);
-  }
-
-  .tx-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-  }
-
-  .tx-card.base-tx::before { background: var(--base-bright); }
-  .tx-card.sentinel-tx::before { background: var(--sentinel); }
-
-  .tx-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 12px;
-  }
-
-  .tx-title {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-bright);
-  }
-
-  .tx-chain-badge {
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 3px 10px;
-    border-radius: 4px;
-  }
-
-  .tx-chain-badge.base { background: rgba(0,82,255,0.15); color: var(--base-bright); }
-  .tx-chain-badge.sentinel { background: var(--blue-dim); color: var(--blue); }
-
-  .tx-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 0;
-    font-size: 13px;
-  }
-
-  .tx-row + .tx-row {
-    border-top: 1px solid var(--border);
-  }
-
-  .tx-key {
-    color: var(--text-dim);
-    font-size: 12px;
-  }
-
-  .tx-val {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text);
-    text-align: right;
-    max-width: 65%;
-    word-break: break-all;
-  }
-
-  .tx-val a {
-    color: var(--blue);
-    text-decoration: none;
-    border-bottom: 1px dashed transparent;
-    transition: border-color 0.2s;
-  }
-
-  .tx-val a:hover { border-color: var(--blue); }
-
-  .tx-hash {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    word-break: break-all;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
-
-  .tx-hash a {
-    color: var(--blue);
-    text-decoration: none;
-  }
-
-  .tx-hash a:hover { text-decoration: underline; }
-
-  /* ─── Fee Grant ─── */
-  .fee-grant-section {
-    margin-bottom: 48px;
-  }
-
-  .fee-grant-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 28px;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 32px;
-  }
-
-  .fg-col h3 {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-    margin-bottom: 16px;
-  }
-
-  .fg-meter {
-    width: 100%;
-    height: 8px;
-    background: var(--bg-elevated);
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 12px 0;
-  }
-
-  .fg-meter-fill {
-    height: 100%;
-    border-radius: 4px;
-    background: linear-gradient(90deg, var(--blue), var(--green));
-    transition: width 0.5s ease;
-  }
-
-  .fg-stat {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    padding: 4px 0;
-  }
-
-  .fg-stat-label { color: var(--text-dim); }
-  .fg-stat-val { font-family: var(--mono); color: var(--text); font-weight: 500; }
-
-  .fg-msg-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .fg-msg-list li {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text);
-    padding: 6px 10px;
-    background: var(--bg-elevated);
-    border-radius: 6px;
-    border-left: 2px solid var(--blue);
-  }
-
-  /* ─── Pricing ─── */
-  .pricing-section {
-    margin-bottom: 48px;
-  }
-
-  .pricing-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-  }
-
-  .price-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    text-align: center;
-    transition: border-color 0.2s, transform 0.2s;
-  }
-
-  .price-card:hover {
-    border-color: var(--border-bright);
-    transform: translateY(-2px);
-  }
-
-  .price-card.active {
-    border-color: var(--blue);
-    background: rgba(30,136,229,0.05);
-  }
-
-  .price-duration {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-  }
-
-  .price-amount {
-    font-family: var(--mono);
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--text-bright);
-  }
-
-  .price-amount .currency {
-    font-size: 16px;
-    color: var(--text-dim);
-    font-weight: 400;
-  }
-
-  .price-endpoint {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 8px;
-  }
-
-  /* ─── Timeline ─── */
-  .timeline-section {
-    margin-bottom: 48px;
-  }
-
-  .timeline {
-    position: relative;
-    padding-left: 32px;
-  }
-
-  .timeline::before {
-    content: '';
-    position: absolute;
-    left: 11px; top: 0; bottom: 0;
-    width: 2px;
-    background: var(--border);
-  }
-
-  .tl-item {
-    position: relative;
-    padding: 8px 0 8px 24px;
-    display: flex;
-    align-items: baseline;
-    gap: 16px;
-  }
-
-  .tl-item::before {
-    content: '';
-    position: absolute;
-    left: -25px; top: 14px;
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: var(--bg);
-    border: 2px solid var(--border-bright);
-    z-index: 1;
-  }
-
-  .tl-item.base-ev::before { border-color: var(--base-bright); background: rgba(0,82,255,0.3); }
-  .tl-item.sentinel-ev::before { border-color: var(--blue); background: var(--blue-dim); }
-  .tl-item.local-ev::before { border-color: var(--text-dim); }
-  .tl-item.highlight-ev::before { border-color: var(--green); background: var(--green-dim); width: 12px; height: 12px; left: -26px; top: 13px; }
-
-  .tl-time {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-dim);
-    min-width: 80px;
-  }
-
-  .tl-step {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--blue);
-    min-width: 50px;
-  }
-
-  .tl-desc {
-    font-size: 13px;
-    color: var(--text);
-  }
-
-  .tl-detail {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-left: 8px;
-  }
-
-  /* ─── Connection card ─── */
-  .connection-section {
-    margin-bottom: 48px;
-  }
-
-  .conn-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 28px;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 32px;
-    align-items: center;
-  }
-
-  .conn-status {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .conn-dot {
-    width: 48px; height: 48px;
-    border-radius: 50%;
-    background: var(--green-dim);
-    border: 3px solid var(--green);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    animation: conn-pulse 3s infinite;
-  }
-
-  @keyframes conn-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(0,200,83,0.3); }
-    50% { box-shadow: 0 0 0 12px rgba(0,200,83,0); }
-  }
-
-  .conn-status-text {
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--green);
-  }
-
-  .conn-details {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px 32px;
-  }
-
-  .conn-field {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .conn-field-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-  }
-
-  .conn-field-val {
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--text-bright);
-    font-weight: 500;
-  }
-
-  .conn-timing {
-    text-align: center;
-  }
-
-  .conn-timing-val {
-    font-family: var(--mono);
-    font-size: 36px;
-    font-weight: 700;
-    color: var(--text-bright);
-  }
-
-  .conn-timing-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-    margin-top: 4px;
-  }
-
-  /* ─── Query links ─── */
-  .links-section {
-    margin-bottom: 48px;
-  }
-
-  .links-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-    gap: 12px;
-  }
-
-  .link-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 18px;
-    text-decoration: none;
-    transition: border-color 0.2s, background 0.15s;
-  }
-
-  .link-card:hover {
-    border-color: var(--blue);
-    background: var(--bg-card-hover);
-  }
-
-  .link-icon {
-    width: 36px; height: 36px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    flex-shrink: 0;
-  }
-
-  .link-icon.base-link { background: rgba(0,82,255,0.12); }
-  .link-icon.sentinel-link { background: var(--blue-dim); }
-
-  .link-text {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .link-title {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-bright);
-  }
-
-  .link-url {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .link-arrow {
-    color: var(--text-dim);
-    font-size: 16px;
-    transition: color 0.2s, transform 0.2s;
-  }
-
-  .link-card:hover .link-arrow {
-    color: var(--blue);
-    transform: translateX(3px);
+    right: -1px;
+    top: -3px;
+    border: 4px solid transparent;
+    border-left: 5px solid rgba(255,255,255,0.12);
   }
 
   /* ─── Footer ─── */
   .footer {
     text-align: center;
-    padding-top: 32px;
-    border-top: 1px solid var(--border);
+    padding: 20px 0;
+    font-size: 12px;
     color: var(--text-dim);
-    font-size: 13px;
   }
 
-  .footer a { color: var(--blue); text-decoration: none; }
+  .footer a { color: var(--accent-blue); text-decoration: none; }
   .footer a:hover { text-decoration: underline; }
 
   .footer-contract {
-    font-family: var(--mono);
-    font-size: 12px;
+    font-family: var(--font-mono);
+    font-size: 10px;
     color: var(--text-dim);
-    margin-top: 8px;
+    margin-top: 4px;
+  }
+
+  /* ─── Empty state ─── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+
+  .empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  .empty-state-text {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .empty-state-sub {
+    font-family: var(--font-mono);
+    font-size: 11px;
   }
 
   /* ─── Responsive ─── */
+  @media (max-width: 1100px) {
+    .data-grid { grid-template-columns: 1fr; }
+    .log-panel { max-height: 300px; }
+  }
+
   @media (max-width: 900px) {
-    .stats-bar { grid-template-columns: repeat(3, 1fr); }
-    .wallets { grid-template-columns: 1fr; }
-    .fee-grant-card { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .wallets-grid { grid-template-columns: 1fr; }
+    .feegrant-card { grid-template-columns: 1fr; }
     .pricing-grid { grid-template-columns: 1fr; }
     .conn-card { grid-template-columns: 1fr; }
-    .step { grid-template-columns: 40px 70px 1fr; }
-    .step-chain { display: none; }
     .flow-diagram { flex-direction: column; }
   }
 </style>
 </head>
 <body>
 
-<div class="container">
+<!-- ═══ HEADER ═══ -->
+<header class="header">
+  <div class="header-left">
+    <div class="pulse-dot idle" id="pulseDot"></div>
+    <div class="header-title"><span>x402</span> Dashboard</div>
+    <div class="header-status" id="headerStatus">Idle</div>
+  </div>
+  <div class="header-right">
+    <span class="header-chip">Base + Sentinel</span>
+    <span class="header-chip" id="headerSteps">0/16 steps</span>
+  </div>
+</header>
 
-  <!-- ═══ HEADER ═══ -->
-  <header class="header">
-    <div class="header-badge"><span class="dot"></span> E2E Test — Passed</div>
-    <h1><span>x402</span> Flow Dashboard</h1>
-    <div class="header-meta">
-      <span>Date: <strong>2026-04-14</strong></span>
-      <span>Duration: <strong>70 seconds</strong></span>
-      <span>Steps: <strong>17</strong></span>
-      <span>On-chain TXs: <strong>5</strong></span>
-      <span>Chains: <strong>Base + Sentinel</strong></span>
-    </div>
-  </header>
+<!-- ═══ MAIN ═══ -->
+<div class="main">
 
-  <!-- ═══ STATS ═══ -->
-  <div class="stats-bar">
-    <div class="stat-card">
+  <!-- Controls bar -->
+  <div class="controls">
+    <button class="btn btn-start" id="btnStart" onclick="startTest()">Run E2E Test</button>
+    <button class="btn btn-stop" id="btnStop" onclick="stopTest()" disabled>Stop</button>
+    <div class="controls-spacer"></div>
+    <div class="controls-timer" id="timer">--</div>
+  </div>
+
+  <!-- Stats grid -->
+  <div class="stats">
+    <div class="stat-card glass">
       <div class="stat-label">Total Time</div>
-      <div class="stat-value">70s</div>
-      <div class="stat-sub">19:27:05 → 19:28:15 UTC</div>
+      <div class="stat-value" id="statTime">--</div>
+      <div class="stat-sub" id="statTimeSub">not started</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card glass">
       <div class="stat-label">USDC Paid</div>
-      <div class="stat-value blue">$0.033</div>
+      <div class="stat-value blue" id="statUsdc">--</div>
       <div class="stat-sub">33,000 atomic (6 dec)</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card glass">
       <div class="stat-label">Agent Gas Cost</div>
-      <div class="stat-value green">$0.00</div>
+      <div class="stat-value green" id="statGas">$0.00</div>
       <div class="stat-sub">EIP-3009 + fee grant</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card glass">
       <div class="stat-label">Connect Time</div>
-      <div class="stat-value">25.9s</div>
-      <div class="stat-sub">WireGuard tunnel</div>
+      <div class="stat-value" id="statConnect">--</div>
+      <div class="stat-sub" id="statConnectSub">WireGuard tunnel</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card glass">
       <div class="stat-label">Session</div>
-      <div class="stat-value blue">39227850</div>
+      <div class="stat-value blue" id="statSession">--</div>
       <div class="stat-sub">Sentinel chain</div>
+    </div>
+    <div class="stat-card glass">
+      <div class="stat-label">Result</div>
+      <div class="stat-value" id="statResult">--</div>
+      <div class="stat-sub" id="statResultSub">waiting</div>
     </div>
   </div>
 
-  <!-- ═══ FLOW DIAGRAM ═══ -->
-  <section class="flow-section">
-    <div class="section-title">Protocol Flow</div>
-    <div class="flow-diagram">
+  <!-- Progress bar -->
+  <div class="progress-section">
+    <div class="progress-header">
+      <span class="progress-label" id="progressLabel">Ready</span>
+      <span class="progress-count" id="progressCount">0 / 16 Steps</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div class="current-action" id="currentAction"></div>
+  </div>
+
+  <!-- Data grid: steps table + live log -->
+  <div class="data-grid">
+
+    <!-- Steps table -->
+    <div class="steps-panel glass">
+      <div class="steps-header">
+        <span class="steps-title">Step-by-Step Execution</span>
+        <span class="steps-count" id="stepsCount">0 entries</span>
+      </div>
+      <div class="steps-table-wrapper" id="stepsWrapper">
+        <table class="steps-table">
+          <thead>
+            <tr>
+              <th style="width:36px">#</th>
+              <th style="width:70px">Time</th>
+              <th>Description</th>
+              <th style="width:80px;text-align:right">Chain</th>
+            </tr>
+          </thead>
+          <tbody id="stepsBody"></tbody>
+        </table>
+        <div class="empty-state" id="stepsEmpty">
+          <div class="empty-state-icon">&#x1F680;</div>
+          <div class="empty-state-text">No test running</div>
+          <div class="empty-state-sub">Click "Run E2E Test" to start</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live log -->
+    <div class="log-panel glass">
+      <div class="log-header">
+        <span class="log-title">Live Log</span>
+      </div>
+      <div class="log-body" id="logBody">
+        <div class="log-entry" style="color:var(--text-dim)">Waiting for test...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction pills -->
+  <div class="tx-section" id="txSection" style="display:none">
+    <div class="section-label">On-Chain Transactions</div>
+    <div class="tx-pills" id="txPills"></div>
+  </div>
+
+  <!-- Wallets -->
+  <div class="wallets-section" id="walletsSection" style="display:none">
+    <div class="section-label">Wallets</div>
+    <div class="wallets-grid" id="walletsGrid"></div>
+  </div>
+
+  <!-- VPN Connection -->
+  <div class="connection-section" id="connSection" style="display:none">
+    <div class="section-label">VPN Connection</div>
+    <div class="conn-card glass" id="connCard">
+      <div class="conn-status">
+        <div class="conn-dot pending" id="connDot">&#x1F512;</div>
+        <div class="conn-status-text" id="connStatusText" style="color:var(--text-dim)">Pending</div>
+      </div>
+      <div class="conn-details" id="connDetails">
+        <div><span class="conn-field-label">Session</span><div class="conn-field-val" id="connSession">--</div></div>
+        <div><span class="conn-field-label">Protocol</span><div class="conn-field-val" id="connProtocol">--</div></div>
+        <div><span class="conn-field-label">Node</span><div class="conn-field-val" id="connNode">--</div></div>
+        <div><span class="conn-field-label">Location</span><div class="conn-field-val" id="connLocation">--</div></div>
+        <div><span class="conn-field-label">Subscription</span><div class="conn-field-val" id="connSub">--</div></div>
+        <div><span class="conn-field-label">Plan</span><div class="conn-field-val" id="connPlan">--</div></div>
+      </div>
+      <div class="conn-timing">
+        <div class="conn-timing-val" id="connTime">--</div>
+        <div class="conn-timing-label">Seconds</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fee Grant -->
+  <div class="feegrant-section" id="fgSection" style="display:none">
+    <div class="section-label">Fee Grant (Sentinel Chain)</div>
+    <div class="feegrant-card glass" id="fgCard">
+      <div class="fg-col">
+        <h3>Balance</h3>
+        <div class="fg-meter"><div class="fg-meter-fill" id="fgMeterFill" style="width:0%"></div></div>
+        <div class="fg-stat"><span class="fg-stat-label">Initial</span><span class="fg-stat-val" id="fgInitial">--</span></div>
+        <div class="fg-stat"><span class="fg-stat-label">Remaining</span><span class="fg-stat-val" id="fgRemaining">--</span></div>
+        <div class="fg-stat"><span class="fg-stat-label">Used</span><span class="fg-stat-val" id="fgUsed">--</span></div>
+        <div class="fg-stat"><span class="fg-stat-label">TXs remaining</span><span class="fg-stat-val" id="fgTxsLeft">--</span></div>
+      </div>
+      <div class="fg-col">
+        <h3>Details</h3>
+        <div class="fg-stat"><span class="fg-stat-label">Granter</span><span class="fg-stat-val" id="fgGranter">--</span></div>
+        <div class="fg-stat"><span class="fg-stat-label">Grantee</span><span class="fg-stat-val" id="fgGrantee">--</span></div>
+        <div class="fg-stat"><span class="fg-stat-label">Expires</span><span class="fg-stat-val" id="fgExpires">--</span></div>
+      </div>
+      <div class="fg-col">
+        <h3>Allowed Messages</h3>
+        <ul class="fg-msg-list" id="fgMsgs"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flow Diagram -->
+  <div class="flow-section">
+    <div class="section-label">Protocol Flow</div>
+    <div class="flow-diagram glass">
       <div class="flow-node">
         <div class="flow-icon agent">&#x1F916;</div>
         <div class="flow-label">Agent</div>
-        <div class="flow-sub">EVM wallet + Sentinel wallet</div>
+        <div class="flow-sub">EVM + Sentinel wallet</div>
       </div>
       <div class="flow-arrow">
         <div class="flow-arrow-text">POST /vpn/connect</div>
         <div class="flow-arrow-line"></div>
-        <div class="flow-arrow-text">→ 402 Payment Required</div>
+        <div class="flow-arrow-text">402 Payment Required</div>
       </div>
       <div class="flow-node">
         <div class="flow-icon server">&#x2699;</div>
         <div class="flow-label">x402 Server</div>
-        <div class="flow-sub">Payment + provisioning</div>
+        <div class="flow-sub">Payment + provision</div>
       </div>
       <div class="flow-arrow">
         <div class="flow-arrow-text">EIP-3009 settle</div>
@@ -1033,7 +1194,7 @@
       <div class="flow-node">
         <div class="flow-icon base-chain">&#x26D3;</div>
         <div class="flow-label">Base</div>
-        <div class="flow-sub">USDC payment chain</div>
+        <div class="flow-sub">USDC payment</div>
       </div>
       <div class="flow-arrow">
         <div class="flow-arrow-text">Share sub + grant</div>
@@ -1043,7 +1204,7 @@
       <div class="flow-node">
         <div class="flow-icon sentinel-chain">&#x1F30D;</div>
         <div class="flow-label">Sentinel</div>
-        <div class="flow-sub">dVPN chain (Cosmos)</div>
+        <div class="flow-sub">dVPN chain</div>
       </div>
       <div class="flow-arrow">
         <div class="flow-arrow-text">WireGuard</div>
@@ -1051,982 +1212,488 @@
         <div class="flow-arrow-text">Direct tunnel</div>
       </div>
       <div class="flow-node">
-        <div class="flow-icon node">&#x1F5A5;</div>
+        <div class="flow-icon vpn-node">&#x1F5A5;</div>
         <div class="flow-label">dVPN Node</div>
-        <div class="flow-sub">Columbus, US</div>
+        <div class="flow-sub">Decentralized</div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- ═══ WALLETS ═══ -->
-  <section>
-    <div class="section-title">Wallets</div>
-    <div class="wallets">
-      <div class="wallet-card base">
-        <div class="wallet-role">Agent (Base)</div>
-        <span class="wallet-chain base">EIP-155:8453</span>
-        <div class="wallet-addr">
-          <a href="https://basescan.org/address/0x8FA1D47589841902d39e308d65799B36A27Df075" target="_blank">0x8FA1D47589841902d39e308d65799B36A27Df075</a>
-        </div>
-        <div class="wallet-balance">
-          <span>USDC: <span class="amt">0.034 → 0.001</span> (paid $0.033)</span>
-          <span>ETH: <span class="amt">0.00005</span> (unchanged)</span>
-        </div>
-      </div>
-      <div class="wallet-card sentinel">
-        <div class="wallet-role">Agent (Sentinel)</div>
-        <span class="wallet-chain sentinel">sentinelhub-2</span>
-        <div class="wallet-addr">
-          <a href="https://www.mintscan.io/sentinel/address/sent1xn5cq84jt9pa82k3hadnr54xxvguj3f7jqkevw" target="_blank">sent1xn5cq84jt9pa82k3hadnr54xxvguj3f7jqkevw</a>
-        </div>
-        <div class="wallet-balance">
-          <span>P2P: <span class="amt">0.00</span> (fee-granted)</span>
-          <span>Fee grant: <span class="amt">4.88 P2P remaining</span></span>
-        </div>
-      </div>
-      <div class="wallet-card operator">
-        <div class="wallet-role">Operator</div>
-        <span class="wallet-chain multi">Base + Sentinel</span>
-        <div class="wallet-addr">
-          <a href="https://basescan.org/address/0xCC689D76786a698EAc6b3b7ba9e0b6b3AED72B49" target="_blank">0xCC689D...AED72B49</a>
-          <br>
-          <a href="https://www.mintscan.io/sentinel/address/sent12e03wzmxjerwqt63p252cqs90jwfuwdd4fjhzg" target="_blank">sent12e03...fjhzg</a>
-        </div>
-        <div class="wallet-balance">
-          <span>USDC: <span class="amt">1.834357</span></span>
-          <span>ETH: <span class="amt">0.003539</span></span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ STEP BY STEP ═══ -->
-  <section class="steps-section">
-    <div class="section-title">Step-by-Step Execution</div>
-    <div class="steps-grid">
-      <div class="step">
-        <div class="step-num">01</div>
-        <div class="step-time">19:27:05</div>
-        <div class="step-desc"><strong>Generate fresh EVM wallet</strong> — secp256k1 keypair, local only</div>
-        <span class="step-chain local">Local</span>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <div class="step-time">19:27:05</div>
-        <div class="step-desc"><strong>Generate fresh Sentinel wallet</strong> — BIP39 mnemonic → Cosmos keypair</div>
-        <span class="step-chain local">Local</span>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <div class="step-time">19:27:05</div>
-        <div class="step-desc"><strong>Fund agent: 0.034 USDC</strong> — operator → agent on Base</div>
-        <span class="step-chain base">Base TX</span>
-      </div>
-      <div class="step">
-        <div class="step-num">04</div>
-        <div class="step-time">19:27:10</div>
-        <div class="step-desc"><strong>Fund agent: 0.00005 ETH</strong> — gas reserve (unused with EIP-3009)</div>
-        <span class="step-chain base">Base TX</span>
-      </div>
-      <div class="step">
-        <div class="step-num">05</div>
-        <div class="step-time">19:27:15</div>
-        <div class="step-desc"><strong>Verify balances</strong> — USDC ✓, ETH ✓, P2P = 0 (fee-granted)</div>
-        <span class="step-chain local">Read</span>
-      </div>
-      <div class="step highlight">
-        <div class="step-num">06</div>
-        <div class="step-time">19:27:15</div>
-        <div class="step-desc"><strong>POST /vpn/connect/1day → HTTP 402</strong> — price: $0.033, scheme: EIP-3009</div>
-        <span class="step-chain both">x402</span>
-      </div>
-      <div class="step highlight">
-        <div class="step-num">07</div>
-        <div class="step-time">19:27:15</div>
-        <div class="step-desc"><strong>x402 payment</strong> — sign EIP-3009 → facilitator settles USDC → provision on Sentinel</div>
-        <span class="step-chain both">Base + Sentinel</span>
-      </div>
-      <div class="step">
-        <div class="step-num">08</div>
-        <div class="step-time">19:27:25</div>
-        <div class="step-desc"><strong>Provisioning confirmed</strong> — sub 1192288, plan 42, fee grant created</div>
-        <span class="step-chain sentinel">Sentinel TX</span>
-      </div>
-      <div class="step">
-        <div class="step-num">09</div>
-        <div class="step-time">19:27:26</div>
-        <div class="step-desc"><strong>Query fee grant via RPC</strong> — 5M udvpn, 4 msg types, expires 2026-04-16</div>
-        <span class="step-chain sentinel">RPC Query</span>
-      </div>
-      <div class="step highlight">
-        <div class="step-num">10</div>
-        <div class="step-time">19:27:26</div>
-        <div class="step-desc"><strong>Connect to VPN</strong> — MsgStartSession (fee-granted, 0 gas)</div>
-        <span class="step-chain sentinel">Sentinel TX</span>
-      </div>
-      <div class="step highlight">
-        <div class="step-num">11</div>
-        <div class="step-time">19:27:52</div>
-        <div class="step-desc"><strong>VPN connected</strong> — WireGuard tunnel to sentnode10e7...zdkke (Columbus, US)</div>
-        <span class="step-chain sentinel">Connected</span>
-      </div>
-      <div class="step">
-        <div class="step-num">12</div>
-        <div class="step-time">19:27:29</div>
-        <div class="step-desc"><strong>Session start TX found</strong> — block 27815452 via Tendermint tx_search</div>
-        <span class="step-chain sentinel">RPC Query</span>
-      </div>
-      <div class="step">
-        <div class="step-num">13</div>
-        <div class="step-time">19:28:06</div>
-        <div class="step-desc"><strong>Verify tunnel active</strong> — session 39227850 confirmed connected</div>
-        <span class="step-chain local">Local</span>
-      </div>
-      <div class="step">
-        <div class="step-num">14</div>
-        <div class="step-time">19:28:06</div>
-        <div class="step-desc"><strong>Disconnect + end session</strong> — MsgCancelSession (fee-granted, fire-and-forget)</div>
-        <span class="step-chain sentinel">Sentinel TX</span>
-      </div>
-      <div class="step">
-        <div class="step-num">15</div>
-        <div class="step-time">19:28:08</div>
-        <div class="step-desc"><strong>Session end TX found</strong> — block 27815461 via Tendermint tx_search</div>
-        <span class="step-chain sentinel">RPC Query</span>
-      </div>
-      <div class="step">
-        <div class="step-num">16</div>
-        <div class="step-time">19:28:15</div>
-        <div class="step-desc"><strong>Post-disconnect fee grant</strong> — 5M → 4.88M udvpn (120K used, ~81 TXs left)</div>
-        <span class="step-chain sentinel">RPC Query</span>
-      </div>
-      <div class="step">
-        <div class="step-num">17</div>
-        <div class="step-time">19:28:15</div>
-        <div class="step-desc"><strong>Final balances</strong> — USDC: 0.001, ETH: 0.00005, P2P: 0.00</div>
-        <span class="step-chain local">Read</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ TRANSACTIONS ═══ -->
-  <section class="tx-section">
-    <div class="section-title">On-Chain Transactions (5)</div>
-    <div class="tx-grid">
-
-      <div class="tx-card base-tx">
-        <div class="tx-header">
-          <div class="tx-title">TX 1 — USDC Funding</div>
-          <span class="tx-chain-badge base">Base</span>
-        </div>
-        <div class="tx-row"><span class="tx-key">From</span><span class="tx-val">Operator</span></div>
-        <div class="tx-row"><span class="tx-key">To</span><span class="tx-val">Agent</span></div>
-        <div class="tx-row"><span class="tx-key">Amount</span><span class="tx-val">0.034 USDC</span></div>
-        <div class="tx-row"><span class="tx-key">Block</span><span class="tx-val">44,702,740</span></div>
-        <div class="tx-row"><span class="tx-key">Time</span><span class="tx-val">19:27:10 UTC</span></div>
-        <div class="tx-hash">
-          <a href="https://basescan.org/tx/0xe476d480116ad91fdefb647285dd1f3cb3f62473ef7d0dc153a07250a8ff4e41" target="_blank">
-            0xe476d480...a8ff4e41 ↗
-          </a>
-        </div>
-      </div>
-
-      <div class="tx-card base-tx">
-        <div class="tx-header">
-          <div class="tx-title">TX 2 — ETH Gas Funding</div>
-          <span class="tx-chain-badge base">Base</span>
-        </div>
-        <div class="tx-row"><span class="tx-key">From</span><span class="tx-val">Operator</span></div>
-        <div class="tx-row"><span class="tx-key">To</span><span class="tx-val">Agent</span></div>
-        <div class="tx-row"><span class="tx-key">Amount</span><span class="tx-val">0.00005 ETH</span></div>
-        <div class="tx-row"><span class="tx-key">Block</span><span class="tx-val">44,702,743</span></div>
-        <div class="tx-row"><span class="tx-key">Time</span><span class="tx-val">19:27:15 UTC</span></div>
-        <div class="tx-hash">
-          <a href="https://basescan.org/tx/0xb224ee7d98424249026c7c5fa881b42125282717f226868bb30e333fe1f523d8" target="_blank">
-            0xb224ee7d...f1f523d8 ↗
-          </a>
-        </div>
-      </div>
-
-      <div class="tx-card sentinel-tx">
-        <div class="tx-header">
-          <div class="tx-title">TX 3 — Provision Agent</div>
-          <span class="tx-chain-badge sentinel">Sentinel</span>
-        </div>
-        <div class="tx-row"><span class="tx-key">From</span><span class="tx-val">Operator</span></div>
-        <div class="tx-row"><span class="tx-key">Messages</span><span class="tx-val">ShareSub + FeeGrant</span></div>
-        <div class="tx-row"><span class="tx-key">Subscription</span><span class="tx-val">1,192,288</span></div>
-        <div class="tx-row"><span class="tx-key">Plan</span><span class="tx-val">42</span></div>
-        <div class="tx-row"><span class="tx-key">Time</span><span class="tx-val">19:27:25 UTC</span></div>
-        <div class="tx-hash">
-          <a href="https://www.mintscan.io/sentinel/tx/113628625660433B3E53E5B90306EF0C22E7900439F93448708CA084B8DA7367" target="_blank">
-            11362862...B8DA7367 ↗
-          </a>
-        </div>
-      </div>
-
-      <div class="tx-card sentinel-tx">
-        <div class="tx-header">
-          <div class="tx-title">TX 4 — Start Session</div>
-          <span class="tx-chain-badge sentinel">Sentinel</span>
-        </div>
-        <div class="tx-row"><span class="tx-key">From</span><span class="tx-val">Agent (fee-granted)</span></div>
-        <div class="tx-row"><span class="tx-key">Granter</span><span class="tx-val">Operator</span></div>
-        <div class="tx-row"><span class="tx-key">Session</span><span class="tx-val">39,227,850</span></div>
-        <div class="tx-row"><span class="tx-key">Block</span><span class="tx-val">27,815,452</span></div>
-        <div class="tx-row"><span class="tx-key">Time</span><span class="tx-val">19:27:29 UTC</span></div>
-        <div class="tx-hash">
-          <a href="https://www.mintscan.io/sentinel/tx/45EA77A5773C97B3CEB48550A2BA238A58E442D8B62B548D7A1C4638E80315C2" target="_blank">
-            45EA77A5...E80315C2 ↗
-          </a>
-        </div>
-      </div>
-
-      <div class="tx-card sentinel-tx">
-        <div class="tx-header">
-          <div class="tx-title">TX 5 — End Session</div>
-          <span class="tx-chain-badge sentinel">Sentinel</span>
-        </div>
-        <div class="tx-row"><span class="tx-key">From</span><span class="tx-val">Agent (fee-granted)</span></div>
-        <div class="tx-row"><span class="tx-key">Granter</span><span class="tx-val">Operator</span></div>
-        <div class="tx-row"><span class="tx-key">Session</span><span class="tx-val">39,227,850</span></div>
-        <div class="tx-row"><span class="tx-key">Block</span><span class="tx-val">27,815,461</span></div>
-        <div class="tx-row"><span class="tx-key">Time</span><span class="tx-val">19:28:08 UTC</span></div>
-        <div class="tx-hash">
-          <a href="https://www.mintscan.io/sentinel/tx/2772B8B831EB8FD3BF49A1F76969DF01B5A6D2FF3645EF5BAE3108C77B1DBA3C" target="_blank">
-            2772B8B8...C77B1DBA3C ↗
-          </a>
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- ═══ VPN CONNECTION ═══ -->
-  <section class="connection-section">
-    <div class="section-title">VPN Connection</div>
-    <div class="conn-card">
-      <div class="conn-status">
-        <div class="conn-dot">&#x1F512;</div>
-        <div class="conn-status-text">Verified</div>
-      </div>
-      <div class="conn-details">
-        <div class="conn-field">
-          <span class="conn-field-label">Session ID</span>
-          <span class="conn-field-val">39227850</span>
-        </div>
-        <div class="conn-field">
-          <span class="conn-field-label">Protocol</span>
-          <span class="conn-field-val">WireGuard</span>
-        </div>
-        <div class="conn-field">
-          <span class="conn-field-label">Node</span>
-          <span class="conn-field-val">sentnode10e7...zdkke</span>
-        </div>
-        <div class="conn-field">
-          <span class="conn-field-label">Location</span>
-          <span class="conn-field-val">Columbus, United States</span>
-        </div>
-        <div class="conn-field">
-          <span class="conn-field-label">Subscription</span>
-          <span class="conn-field-val">1,192,288 (Plan 42)</span>
-        </div>
-        <div class="conn-field">
-          <span class="conn-field-label">Expires</span>
-          <span class="conn-field-val">2026-04-16 19:27 UTC</span>
-        </div>
-      </div>
-      <div class="conn-timing">
-        <div class="conn-timing-val">25.9</div>
-        <div class="conn-timing-label">Seconds to connect</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ FEE GRANT ═══ -->
-  <section class="fee-grant-section">
-    <div class="section-title">Fee Grant (Sentinel Chain)</div>
-    <div class="fee-grant-card">
-      <div class="fg-col">
-        <h3>Balance</h3>
-        <div class="fg-meter">
-          <div class="fg-meter-fill" style="width: 97.6%"></div>
-        </div>
-        <div class="fg-stat">
-          <span class="fg-stat-label">Initial</span>
-          <span class="fg-stat-val">5,000,000 udvpn</span>
-        </div>
-        <div class="fg-stat">
-          <span class="fg-stat-label">Remaining</span>
-          <span class="fg-stat-val">4,880,000 udvpn</span>
-        </div>
-        <div class="fg-stat">
-          <span class="fg-stat-label">Used</span>
-          <span class="fg-stat-val">120,000 udvpn (2 TXs)</span>
-        </div>
-        <div class="fg-stat">
-          <span class="fg-stat-label">Cost per TX</span>
-          <span class="fg-stat-val">~60,000 udvpn</span>
-        </div>
-        <div class="fg-stat">
-          <span class="fg-stat-label">TXs remaining</span>
-          <span class="fg-stat-val">~81</span>
-        </div>
-      </div>
-      <div class="fg-col">
-        <h3>Details</h3>
-        <div class="fg-stat">
-          <span class="fg-stat-label">Granter</span>
-          <span class="fg-stat-val">sent12e03...fjhzg</span>
-        </div>
-        <div class="fg-stat">
-          <span class="fg-stat-label">Grantee</span>
-          <span class="fg-stat-val">sent1xn5c...jqkevw</span>
-        </div>
-        <div class="fg-stat">
-          <span class="fg-stat-label">Expires</span>
-          <span class="fg-stat-val">2026-04-16 19:27</span>
-        </div>
-        <div class="fg-stat">
-          <span class="fg-stat-label">Type</span>
-          <span class="fg-stat-val">AllowedMsgAllowance</span>
-        </div>
-        <div class="fg-stat">
-          <span class="fg-stat-label">Queried via</span>
-          <span class="fg-stat-val">Sentinel RPC</span>
-        </div>
-      </div>
-      <div class="fg-col">
-        <h3>Allowed Messages (4)</h3>
-        <ul class="fg-msg-list">
-          <li>/sentinel.subscription.v3.MsgStartSessionRequest</li>
-          <li>/sentinel.session.v3.MsgCancelSessionRequest</li>
-          <li>/sentinel.session.v3.MsgUpdateSessionRequest</li>
-          <li>/sentinel.node.v3.MsgStartSessionRequest</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ PRICING ═══ -->
-  <section class="pricing-section">
-    <div class="section-title">Pricing</div>
+  <!-- Pricing -->
+  <div class="pricing-section">
+    <div class="section-label">Pricing</div>
     <div class="pricing-grid">
-      <div class="price-card active">
+      <div class="price-card glass active">
         <div class="price-duration">1 Day</div>
         <div class="price-amount">$0.033 <span class="currency">USDC</span></div>
         <div class="price-endpoint">POST /vpn/connect/1day</div>
       </div>
-      <div class="price-card">
+      <div class="price-card glass">
         <div class="price-duration">7 Days</div>
         <div class="price-amount">$0.233 <span class="currency">USDC</span></div>
         <div class="price-endpoint">POST /vpn/connect/7days</div>
       </div>
-      <div class="price-card">
+      <div class="price-card glass">
         <div class="price-duration">30 Days</div>
         <div class="price-amount">$1.00 <span class="currency">USDC</span></div>
         <div class="price-endpoint">POST /vpn/connect/30days</div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- ═══ TIMELINE ═══ -->
-  <section class="timeline-section">
-    <div class="section-title">Timeline</div>
-    <div class="timeline">
-      <div class="tl-item local-ev">
-        <span class="tl-time">19:27:05</span>
-        <span class="tl-step">01-02</span>
-        <span class="tl-desc">Generate EVM + Sentinel wallets</span>
-      </div>
-      <div class="tl-item base-ev">
-        <span class="tl-time">19:27:05</span>
-        <span class="tl-step">03</span>
-        <span class="tl-desc">Fund 0.034 USDC on Base</span>
-        <span class="tl-detail">→ confirmed 19:27:10 (block 44702740)</span>
-      </div>
-      <div class="tl-item base-ev">
-        <span class="tl-time">19:27:10</span>
-        <span class="tl-step">04</span>
-        <span class="tl-desc">Fund 0.00005 ETH on Base</span>
-        <span class="tl-detail">→ confirmed 19:27:15 (block 44702743)</span>
-      </div>
-      <div class="tl-item local-ev">
-        <span class="tl-time">19:27:15</span>
-        <span class="tl-step">05</span>
-        <span class="tl-desc">Verify balances</span>
-      </div>
-      <div class="tl-item highlight-ev">
-        <span class="tl-time">19:27:15</span>
-        <span class="tl-step">06-07</span>
-        <span class="tl-desc">x402 payment: 402 → EIP-3009 → settle → provision</span>
-        <span class="tl-detail">9.5s elapsed</span>
-      </div>
-      <div class="tl-item sentinel-ev">
-        <span class="tl-time">19:27:25</span>
-        <span class="tl-step">08</span>
-        <span class="tl-desc">Provisioning confirmed (sub 1192288)</span>
-      </div>
-      <div class="tl-item sentinel-ev">
-        <span class="tl-time">19:27:26</span>
-        <span class="tl-step">09</span>
-        <span class="tl-desc">Fee grant verified via RPC (5M udvpn)</span>
-      </div>
-      <div class="tl-item highlight-ev">
-        <span class="tl-time">19:27:26</span>
-        <span class="tl-step">10-11</span>
-        <span class="tl-desc">VPN connect: MsgStartSession → WireGuard tunnel</span>
-        <span class="tl-detail">25.9s</span>
-      </div>
-      <div class="tl-item sentinel-ev">
-        <span class="tl-time">19:27:29</span>
-        <span class="tl-step">12</span>
-        <span class="tl-desc">Session start TX on chain (block 27815452)</span>
-      </div>
-      <div class="tl-item local-ev">
-        <span class="tl-time">19:28:06</span>
-        <span class="tl-step">13</span>
-        <span class="tl-desc">Tunnel verified active</span>
-      </div>
-      <div class="tl-item sentinel-ev">
-        <span class="tl-time">19:28:06</span>
-        <span class="tl-step">14</span>
-        <span class="tl-desc">Disconnect + MsgCancelSession</span>
-      </div>
-      <div class="tl-item sentinel-ev">
-        <span class="tl-time">19:28:08</span>
-        <span class="tl-step">15</span>
-        <span class="tl-desc">Session end TX on chain (block 27815461)</span>
-      </div>
-      <div class="tl-item sentinel-ev">
-        <span class="tl-time">19:28:15</span>
-        <span class="tl-step">16</span>
-        <span class="tl-desc">Fee grant: 5M → 4.88M udvpn (120K used)</span>
-      </div>
-      <div class="tl-item local-ev">
-        <span class="tl-time">19:28:15</span>
-        <span class="tl-step">17</span>
-        <span class="tl-desc">Final balances recorded</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ EXPLORER LINKS ═══ -->
-  <section class="links-section">
-    <div class="section-title">Explorer Links</div>
-    <div class="links-grid">
-
-      <a class="link-card" href="https://basescan.org/address/0x8FA1D47589841902d39e308d65799B36A27Df075" target="_blank">
-        <div class="link-icon base-link">&#x26D3;</div>
-        <div class="link-text">
-          <div class="link-title">Agent on Base</div>
-          <div class="link-url">basescan.org/address/0x8FA1D4...Df075</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://www.mintscan.io/sentinel/address/sent1xn5cq84jt9pa82k3hadnr54xxvguj3f7jqkevw" target="_blank">
-        <div class="link-icon sentinel-link">&#x1F30D;</div>
-        <div class="link-text">
-          <div class="link-title">Agent on Sentinel</div>
-          <div class="link-url">mintscan.io/sentinel/address/sent1xn5c...kevw</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://basescan.org/address/0xCC689D76786a698EAc6b3b7ba9e0b6b3AED72B49" target="_blank">
-        <div class="link-icon base-link">&#x26D3;</div>
-        <div class="link-text">
-          <div class="link-title">Operator on Base</div>
-          <div class="link-url">basescan.org/address/0xCC689D...2B49</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://www.mintscan.io/sentinel/address/sent12e03wzmxjerwqt63p252cqs90jwfuwdd4fjhzg" target="_blank">
-        <div class="link-icon sentinel-link">&#x1F30D;</div>
-        <div class="link-text">
-          <div class="link-title">Operator on Sentinel</div>
-          <div class="link-url">mintscan.io/sentinel/address/sent12e03...jhzg</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://basescan.org/tx/0xe476d480116ad91fdefb647285dd1f3cb3f62473ef7d0dc153a07250a8ff4e41" target="_blank">
-        <div class="link-icon base-link">&#x26D3;</div>
-        <div class="link-text">
-          <div class="link-title">TX 1 — USDC Funding</div>
-          <div class="link-url">0xe476d480...a8ff4e41</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://basescan.org/tx/0xb224ee7d98424249026c7c5fa881b42125282717f226868bb30e333fe1f523d8" target="_blank">
-        <div class="link-icon base-link">&#x26D3;</div>
-        <div class="link-text">
-          <div class="link-title">TX 2 — ETH Gas Funding</div>
-          <div class="link-url">0xb224ee7d...f1f523d8</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://www.mintscan.io/sentinel/tx/113628625660433B3E53E5B90306EF0C22E7900439F93448708CA084B8DA7367" target="_blank">
-        <div class="link-icon sentinel-link">&#x1F30D;</div>
-        <div class="link-text">
-          <div class="link-title">TX 3 — Provision Agent</div>
-          <div class="link-url">11362862...B8DA7367</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://www.mintscan.io/sentinel/tx/45EA77A5773C97B3CEB48550A2BA238A58E442D8B62B548D7A1C4638E80315C2" target="_blank">
-        <div class="link-icon sentinel-link">&#x1F30D;</div>
-        <div class="link-text">
-          <div class="link-title">TX 4 — Start Session</div>
-          <div class="link-url">45EA77A5...E80315C2</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://www.mintscan.io/sentinel/tx/2772B8B831EB8FD3BF49A1F76969DF01B5A6D2FF3645EF5BAE3108C77B1DBA3C" target="_blank">
-        <div class="link-icon sentinel-link">&#x1F30D;</div>
-        <div class="link-text">
-          <div class="link-title">TX 5 — End Session</div>
-          <div class="link-url">2772B8B8...C77B1DBA3C</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://lcd.sentinel.co/sentinel/session/v3/sessions/39227850" target="_blank">
-        <div class="link-icon sentinel-link">&#x1F30D;</div>
-        <div class="link-text">
-          <div class="link-title">Session 39227850 (API)</div>
-          <div class="link-url">lcd.sentinel.co/.../sessions/39227850</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://lcd.sentinel.co/cosmos/feegrant/v1beta1/allowances/sent1xn5cq84jt9pa82k3hadnr54xxvguj3f7jqkevw" target="_blank">
-        <div class="link-icon sentinel-link">&#x1F30D;</div>
-        <div class="link-text">
-          <div class="link-title">Agent Fee Grants (API)</div>
-          <div class="link-url">lcd.sentinel.co/.../allowances/sent1xn5c...</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-      <a class="link-card" href="https://lcd.sentinel.co/sentinel/subscription/v3/accounts/sent1xn5cq84jt9pa82k3hadnr54xxvguj3f7jqkevw/subscriptions" target="_blank">
-        <div class="link-icon sentinel-link">&#x1F30D;</div>
-        <div class="link-text">
-          <div class="link-title">Agent Subscriptions (API)</div>
-          <div class="link-url">lcd.sentinel.co/.../subscriptions</div>
-        </div>
-        <span class="link-arrow">→</span>
-      </a>
-
-    </div>
-  </section>
-
-  <!-- ═══ LIVE TEST RUNNER ═══ -->
-  <section class="test-section" id="test-section">
-    <div class="section-title">Live Test Runner</div>
-    <div class="test-controls">
-      <button class="test-btn" id="runTestBtn" onclick="runTest()">
-        <span class="test-btn-icon">&#x25B6;</span>
-        Run New E2E Test
-      </button>
-      <div class="test-status" id="testStatus">Ready — click to create a fresh agent, pay via x402, connect VPN</div>
-    </div>
-
-    <div class="test-output" id="testOutput" style="display:none;">
-      <div class="test-log-header">
-        <span class="test-log-title">Live Output</span>
-        <span class="test-log-timer" id="testTimer">0s</span>
-      </div>
-      <div class="test-steps" id="testSteps"></div>
-      <div class="test-txs" id="testTxs"></div>
-      <div class="test-wallets-live" id="testWallets"></div>
-      <div class="test-log" id="testLog"></div>
-    </div>
-  </section>
-
-  <!-- ═══ FOOTER ═══ -->
+  <!-- Footer -->
   <footer class="footer">
-    <p><strong>x402</strong> — AI agents pay USDC, get private internet. <a href="https://github.com/Sentinel-Autonomybuilder/x402" target="_blank">GitHub</a></p>
+    <p><strong>x402</strong> — AI agents pay USDC, get private internet. <a href="https://github.com/anthropics/x402" target="_blank">GitHub</a></p>
     <div class="footer-contract">
-      USDC Contract: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (Base Mainnet)
+      USDC: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (Base Mainnet)
     </div>
   </footer>
-
 </div>
 
-<style>
-  /* ─── Live Test Runner ─── */
-  .test-section { margin-bottom: 48px; }
-
-  .test-controls {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    margin-bottom: 20px;
-  }
-
-  .test-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--blue);
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    padding: 14px 28px;
-    font-family: var(--mono);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-    letter-spacing: 0.5px;
-  }
-
-  .test-btn:hover {
-    background: #2196f3;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 20px rgba(30,136,229,0.3);
-  }
-
-  .test-btn:active { transform: translateY(0); }
-
-  .test-btn:disabled {
-    background: var(--bg-elevated);
-    color: var(--text-dim);
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-
-  .test-btn.running {
-    background: var(--orange);
-    animation: btn-pulse 1.5s infinite;
-  }
-
-  @keyframes btn-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255,145,0,0.4); }
-    50% { box-shadow: 0 0 0 8px rgba(255,145,0,0); }
-  }
-
-  .test-btn-icon { font-size: 12px; }
-
-  .test-status {
-    font-size: 13px;
-    color: var(--text-dim);
-  }
-
-  .test-status.active { color: var(--orange); }
-  .test-status.pass { color: var(--green); font-weight: 600; }
-  .test-status.fail { color: var(--red); font-weight: 600; }
-
-  .test-output {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    overflow: hidden;
-  }
-
-  .test-log-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 20px;
-    background: var(--bg-elevated);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .test-log-title {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--text-dim);
-  }
-
-  .test-log-timer {
-    font-family: var(--mono);
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--blue);
-  }
-
-  .test-steps {
-    padding: 16px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .test-step-item {
-    display: grid;
-    grid-template-columns: 40px 85px 1fr auto;
-    gap: 12px;
-    align-items: center;
-    padding: 10px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    animation: step-in 0.3s ease;
-  }
-
-  @keyframes step-in {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  .test-step-item .sn {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--blue);
-  }
-
-  .test-step-item .st {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-  }
-
-  .test-step-item .sd {
-    color: var(--text);
-  }
-
-  .test-step-item .sc {
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 4px;
-  }
-
-  .test-step-item.current {
-    background: rgba(30,136,229,0.08);
-    border-left: 3px solid var(--blue);
-  }
-
-  .test-step-item.done {
-    opacity: 0.7;
-  }
-
-  .test-txs, .test-wallets-live {
-    padding: 0 20px 16px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .test-tx-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-family: var(--mono);
-    font-size: 11px;
-    text-decoration: none;
-    color: var(--text);
-    transition: border-color 0.2s;
-    animation: step-in 0.3s ease;
-  }
-
-  .test-tx-pill:hover { border-color: var(--blue); }
-  .test-tx-pill .chain-dot { width: 8px; height: 8px; border-radius: 50%; }
-  .test-tx-pill .chain-dot.base { background: var(--base-bright); }
-  .test-tx-pill .chain-dot.sentinel { background: var(--sentinel); }
-
-  .test-wallet-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-family: var(--mono);
-    font-size: 11px;
-    text-decoration: none;
-    color: var(--text);
-    animation: step-in 0.3s ease;
-  }
-
-  .test-log {
-    padding: 16px 20px;
-    border-top: 1px solid var(--border);
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    max-height: 200px;
-    overflow-y: auto;
-    line-height: 1.8;
-  }
-
-  .test-log .log-line { animation: step-in 0.2s ease; }
-  .test-log .log-line.error { color: var(--red); }
-  .test-log .log-line.success { color: var(--green); }
-</style>
-
 <script>
-let eventSource = null;
+// ─── State ───
+
+let state = {};
 let timerInterval = null;
 let testStartTime = null;
+let es = null; // EventSource
 
-function runTest() {
-  const btn = document.getElementById('runTestBtn');
-  const status = document.getElementById('testStatus');
-  const output = document.getElementById('testOutput');
-  const steps = document.getElementById('testSteps');
-  const txs = document.getElementById('testTxs');
-  const wallets = document.getElementById('testWallets');
-  const log = document.getElementById('testLog');
-  const timer = document.getElementById('testTimer');
+// ─── SSE Connection (Node Tester pattern: persistent, auto-reconnect) ───
 
-  // Reset
-  steps.innerHTML = '';
-  txs.innerHTML = '';
-  wallets.innerHTML = '';
-  log.innerHTML = '';
-  output.style.display = 'block';
-  btn.disabled = true;
-  btn.classList.add('running');
-  btn.innerHTML = '<span class="test-btn-icon">&#x23F3;</span> Test Running...';
-  status.textContent = 'Initializing...';
-  status.className = 'test-status active';
+function connectSSE() {
+  if (es) { es.close(); es = null; }
 
-  // Timer
-  testStartTime = Date.now();
-  timerInterval = setInterval(() => {
-    const elapsed = ((Date.now() - testStartTime) / 1000).toFixed(0);
-    timer.textContent = `${elapsed}s`;
-  }, 500);
+  es = new EventSource('/api/events');
 
-  // SSE connect
-  eventSource = new EventSource('/api/test/run');
-
-  eventSource.addEventListener('step', (e) => {
-    const d = JSON.parse(e.data);
-    // Mark previous step as done
-    const prev = steps.querySelector('.current');
-    if (prev) { prev.classList.remove('current'); prev.classList.add('done'); }
-
-    const time = d.time ? d.time.split('T')[1]?.slice(0, 8) : '';
-    const chain = d.type || 'local';
-    const chainLabel = {
-      'local': 'Local', 'read': 'Read', 'base-tx': 'Base TX',
-      'sentinel-tx': 'Sentinel TX', 'sentinel-rpc': 'RPC Query',
-      'x402': 'x402', 'both': 'Base + Sentinel', 'connected': 'Connected',
-    }[chain] || chain;
-    const chainClass = chain.includes('base') ? 'base' : chain.includes('sentinel') ? 'sentinel' : chain === 'x402' || chain === 'both' ? 'both' : 'local';
-
-    const div = document.createElement('div');
-    div.className = 'test-step-item current';
-    div.innerHTML = `
-      <span class="sn">${String(d.n).padStart(2, '0')}</span>
-      <span class="st">${time}</span>
-      <span class="sd">${d.title}</span>
-      <span class="sc step-chain ${chainClass}">${chainLabel}</span>
-    `;
-    steps.appendChild(div);
-    div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  });
-
-  eventSource.addEventListener('tx', (e) => {
-    const d = JSON.parse(e.data);
-    const chainClass = d.chain === 'Base' ? 'base' : 'sentinel';
-    const shortHash = d.hash.length > 16 ? d.hash.slice(0, 8) + '...' + d.hash.slice(-6) : d.hash;
-
-    const a = document.createElement('a');
-    a.className = 'test-tx-pill';
-    a.href = d.explorer;
-    a.target = '_blank';
-    a.innerHTML = `<span class="chain-dot ${chainClass}"></span> ${d.label.split('(')[0].trim()} — ${shortHash}`;
-    txs.appendChild(a);
-  });
-
-  eventSource.addEventListener('wallet', (e) => {
-    const d = JSON.parse(e.data);
-    const a = document.createElement('a');
-    a.className = 'test-wallet-pill';
-    a.href = d.explorer;
-    a.target = '_blank';
-    const shortAddr = d.address.length > 20 ? d.address.slice(0, 10) + '...' + d.address.slice(-6) : d.address;
-    a.innerHTML = `${d.role}: ${shortAddr}`;
-    wallets.appendChild(a);
-  });
-
-  eventSource.addEventListener('status', (e) => {
-    const d = JSON.parse(e.data);
-    status.textContent = d.message;
-  });
-
-  eventSource.addEventListener('progress', (e) => {
-    const d = JSON.parse(e.data);
-    const div = document.createElement('div');
-    div.className = 'log-line';
-    div.textContent = `[step ${d.step}] ${d.message}`;
-    log.appendChild(div);
-    log.scrollTop = log.scrollHeight;
-  });
-
-  eventSource.addEventListener('error', (e) => {
+  es.onmessage = (e) => {
     try {
-      const d = JSON.parse(e.data);
-      const div = document.createElement('div');
-      div.className = 'log-line error';
-      div.textContent = `ERROR: ${d.message}`;
-      log.appendChild(div);
-    } catch {
-      const div = document.createElement('div');
-      div.className = 'log-line error';
-      div.textContent = 'Connection error';
-      log.appendChild(div);
-    }
-  });
+      const payload = JSON.parse(e.data);
+      handleEvent(payload);
+    } catch {}
+  };
 
-  eventSource.addEventListener('complete', (e) => {
-    const d = JSON.parse(e.data);
-    clearInterval(timerInterval);
-    eventSource.close();
-
-    const elapsed = ((Date.now() - testStartTime) / 1000).toFixed(0);
-    timer.textContent = `${elapsed}s`;
-
-    btn.disabled = false;
-    btn.classList.remove('running');
-    btn.innerHTML = '<span class="test-btn-icon">&#x25B6;</span> Run New E2E Test';
-
-    // Mark last step done
-    const last = steps.querySelector('.current');
-    if (last) { last.classList.remove('current'); last.classList.add('done'); }
-
-    if (d.result === 'PASS') {
-      status.textContent = `PASS — ${d.steps} steps in ${elapsed}s`;
-      status.className = 'test-status pass';
-      const div = document.createElement('div');
-      div.className = 'log-line success';
-      div.textContent = `TEST PASSED — ${d.steps} steps completed`;
-      log.appendChild(div);
-    } else {
-      status.textContent = `FAIL — ${d.error || 'unknown error'}`;
-      status.className = 'test-status fail';
-    }
-  });
-
-  eventSource.onerror = () => {
-    if (eventSource.readyState === EventSource.CLOSED) {
-      clearInterval(timerInterval);
-      btn.disabled = false;
-      btn.classList.remove('running');
-      btn.innerHTML = '<span class="test-btn-icon">&#x25B6;</span> Run New E2E Test';
+  es.onerror = () => {
+    if (es.readyState === EventSource.CLOSED) {
+      // Auto-reconnect after 3s
+      setTimeout(connectSSE, 3000);
     }
   };
 }
+
+function handleEvent(payload) {
+  const { type } = payload;
+
+  if (type === 'init') {
+    // Full state + log replay on connect
+    state = payload.state || {};
+    applyState();
+    if (payload.logs) {
+      payload.logs.forEach(log => handleEvent(log));
+    }
+    return;
+  }
+
+  if (type === 'state') {
+    state = payload.state || state;
+    applyState();
+    return;
+  }
+
+  if (type === 'step') {
+    addStep(payload);
+    return;
+  }
+
+  if (type === 'log') {
+    appendLog(payload.msg);
+    return;
+  }
+
+  if (type === 'tx') {
+    addTxPill(payload);
+    return;
+  }
+
+  if (type === 'wallet') {
+    addWallet(payload);
+    return;
+  }
+
+  if (type === 'progress') {
+    appendLog(payload.msg || payload.message);
+    return;
+  }
+
+  if (type === 'connection') {
+    showConnection(payload);
+    return;
+  }
+
+  if (type === 'feegrant') {
+    showFeeGrant(payload);
+    return;
+  }
+}
+
+// ─── Apply State (syncs all UI from state object) ───
+
+function applyState() {
+  const s = state;
+
+  // Pulse dot
+  const dot = document.getElementById('pulseDot');
+  dot.className = 'pulse-dot ' + (s.status || 'idle');
+
+  // Header status
+  const hStatus = document.getElementById('headerStatus');
+  if (s.status === 'running') hStatus.textContent = s.currentStep || 'Running...';
+  else if (s.status === 'done') hStatus.textContent = `PASS — ${s.stepCount} steps in ${s.elapsed}s`;
+  else if (s.status === 'error') hStatus.textContent = `FAIL — ${s.errorMessage || 'unknown'}`;
+  else hStatus.textContent = 'Idle';
+
+  // Header steps
+  document.getElementById('headerSteps').textContent = `${s.stepCount || 0}/${s.totalSteps || 16} steps`;
+
+  // Stats
+  if (s.elapsed) {
+    document.getElementById('statTime').textContent = `${s.elapsed}s`;
+    document.getElementById('statTimeSub').textContent = 'total';
+  }
+  if (s.usdcPaid) document.getElementById('statUsdc').textContent = s.usdcPaid;
+  if (s.connectTime) document.getElementById('statConnect').textContent = s.connectTime;
+  if (s.sessionId) document.getElementById('statSession').textContent = s.sessionId;
+
+  // Result
+  const resultEl = document.getElementById('statResult');
+  const resultSub = document.getElementById('statResultSub');
+  if (s.result === 'PASS') {
+    resultEl.textContent = 'PASS';
+    resultEl.className = 'stat-value green';
+    resultSub.textContent = 'all steps completed';
+  } else if (s.result === 'FAIL') {
+    resultEl.textContent = 'FAIL';
+    resultEl.className = 'stat-value';
+    resultEl.style.color = 'var(--accent-red)';
+    resultSub.textContent = s.errorMessage?.slice(0, 40) || 'error';
+  } else if (s.status === 'running') {
+    resultEl.textContent = '...';
+    resultEl.className = 'stat-value orange';
+    resultSub.textContent = 'running';
+  }
+
+  // Progress
+  const pct = s.totalSteps > 0 ? Math.min(100, Math.round((s.stepCount || 0) / s.totalSteps * 100)) : 0;
+  const fill = document.getElementById('progressFill');
+  fill.style.width = pct + '%';
+  fill.className = 'progress-fill' + (s.status === 'done' ? ' done' : s.status === 'error' ? ' error' : '');
+
+  document.getElementById('progressLabel').textContent =
+    s.status === 'done' ? 'Complete' :
+    s.status === 'error' ? 'Failed' :
+    s.status === 'running' ? `${pct}% Complete` : 'Ready';
+
+  document.getElementById('progressCount').textContent = `${s.stepCount || 0} / ${s.totalSteps || 16} Steps`;
+
+  if (s.currentStep) {
+    const actionEl = document.getElementById('currentAction');
+    if (s.status === 'error') {
+      actionEl.textContent = 'ERROR: ' + (s.errorMessage || 'unknown');
+      actionEl.style.color = 'var(--accent-red)';
+    } else if (s.status === 'done') {
+      actionEl.textContent = `Test Complete — ${s.stepCount} steps in ${s.elapsed}s`;
+      actionEl.style.color = 'var(--accent-green)';
+    } else {
+      actionEl.textContent = s.currentStep;
+      actionEl.style.color = '';
+    }
+  }
+
+  // Buttons
+  const btnStart = document.getElementById('btnStart');
+  const btnStop = document.getElementById('btnStop');
+  if (s.status === 'running') {
+    btnStart.disabled = true;
+    btnStart.classList.add('loading');
+    btnStart.textContent = 'Test Running...';
+    btnStop.disabled = false;
+  } else {
+    btnStart.disabled = false;
+    btnStart.classList.remove('loading');
+    btnStart.textContent = 'Run E2E Test';
+    btnStop.disabled = true;
+  }
+
+  // Timer
+  if (s.status === 'running' && s.startedAt && !timerInterval) {
+    testStartTime = new Date(s.startedAt).getTime();
+    timerInterval = setInterval(updateTimer, 500);
+  }
+  if (s.status !== 'running' && timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    if (s.elapsed) document.getElementById('timer').textContent = s.elapsed + 's';
+  }
+
+  // Connection
+  if (s.sessionId) {
+    document.getElementById('connSection').style.display = '';
+    document.getElementById('connDot').className = 'conn-dot';
+    document.getElementById('connStatusText').textContent = 'Verified';
+    document.getElementById('connStatusText').style.color = 'var(--accent-green)';
+    document.getElementById('connSession').textContent = s.sessionId;
+    document.getElementById('connProtocol').textContent = s.protocol || '--';
+    document.getElementById('connNode').textContent = s.nodeAddress ? s.nodeAddress.slice(0, 16) + '...' : '--';
+    document.getElementById('connLocation').textContent = [s.city, s.country].filter(Boolean).join(', ') || '--';
+    document.getElementById('connSub').textContent = s.subscriptionId || '--';
+    document.getElementById('connPlan').textContent = s.planId || '--';
+    document.getElementById('connTime').textContent = s.connectTime ? s.connectTime.replace('s', '') : '--';
+  }
+
+  // Fee grant
+  if (s.feeGrantRemaining) {
+    document.getElementById('fgSection').style.display = '';
+    const initial = parseInt(s.feeGrantInitial || '5000000');
+    const remaining = parseInt(s.feeGrantRemaining);
+    const used = s.feeGrantUsed || (initial - remaining);
+    const pctFg = initial > 0 ? Math.round(remaining / initial * 100) : 0;
+    document.getElementById('fgMeterFill').style.width = pctFg + '%';
+    document.getElementById('fgInitial').textContent = initial.toLocaleString() + ' udvpn';
+    document.getElementById('fgRemaining').textContent = remaining.toLocaleString() + ' udvpn';
+    document.getElementById('fgUsed').textContent = used ? `${used.toLocaleString()} udvpn (${Math.ceil(used / 60000)} TXs)` : '--';
+    document.getElementById('fgTxsLeft').textContent = `~${Math.floor(remaining / 60000)}`;
+    if (s.feeGranter) document.getElementById('fgGranter').textContent = s.feeGranter.slice(0, 10) + '...' + s.feeGranter.slice(-5);
+    if (s.agentSentinel) document.getElementById('fgGrantee').textContent = s.agentSentinel.slice(0, 10) + '...' + s.agentSentinel.slice(-5);
+    if (s.feeGrantExpiration) document.getElementById('fgExpires').textContent = s.feeGrantExpiration.slice(0, 16).replace('T', ' ');
+    if (s.feeGrantMessages?.length > 0) {
+      document.getElementById('fgMsgs').innerHTML = s.feeGrantMessages
+        .map(m => `<li>${m.split('.').pop()}</li>`).join('');
+    }
+  }
+}
+
+// ─── Timer ───
+
+function updateTimer() {
+  if (!testStartTime) return;
+  const elapsed = Math.floor((Date.now() - testStartTime) / 1000);
+  document.getElementById('timer').textContent = elapsed + 's';
+}
+
+// ─── Steps Table ───
+
+function addStep(payload) {
+  const tbody = document.getElementById('stepsBody');
+  const empty = document.getElementById('stepsEmpty');
+  if (empty) empty.style.display = 'none';
+
+  // Mark previous as done
+  const prev = tbody.querySelector('tr.current');
+  if (prev) { prev.classList.remove('current'); prev.classList.add('done'); }
+
+  const tr = document.createElement('tr');
+  tr.className = 'current new-row';
+
+  const time = payload.time ? payload.time.split('T')[1]?.slice(0, 8) : '';
+  const chain = payload.type || 'local';
+  const badgeClass = chain.includes('base') ? 'badge-base'
+    : chain.includes('sentinel') || chain.includes('rpc') ? 'badge-sentinel'
+    : chain === 'x402' || chain === 'both' ? 'badge-both'
+    : chain === 'connected' ? 'badge-connected'
+    : chain === 'read' ? 'badge-read'
+    : 'badge-local';
+
+  const chainLabel = {
+    'local': 'Local', 'read': 'Read', 'base-tx': 'Base TX',
+    'sentinel-tx': 'Sentinel', 'sentinel-rpc': 'RPC',
+    'x402': 'x402', 'both': 'Both', 'connected': 'Connected',
+  }[chain] || chain;
+
+  tr.innerHTML = `
+    <td class="step-num">${String(payload.n).padStart(2, '0')}</td>
+    <td class="step-time">${time}</td>
+    <td class="step-desc">${payload.title}</td>
+    <td style="text-align:right"><span class="step-badge ${badgeClass}">${chainLabel}</span></td>
+  `;
+
+  tbody.appendChild(tr);
+
+  // Scroll into view
+  const wrapper = document.getElementById('stepsWrapper');
+  wrapper.scrollTop = wrapper.scrollHeight;
+
+  // Update count
+  document.getElementById('stepsCount').textContent = `${tbody.children.length} entries`;
+
+  // Remove animation class after it plays
+  setTimeout(() => tr.classList.remove('new-row'), 300);
+}
+
+// ─── Log ───
+
+function appendLog(msg) {
+  if (!msg) return;
+  const body = document.getElementById('logBody');
+
+  // Clear initial placeholder
+  if (body.children.length === 1 && body.firstChild.textContent === 'Waiting for test...') {
+    body.innerHTML = '';
+  }
+
+  const div = document.createElement('div');
+  let cls = '';
+  if (/complete|pass|success|verified|connected/i.test(msg)) cls = 'log-ok';
+  else if (/warn|pause/i.test(msg)) cls = 'log-warn';
+  else if (/error|fail|fatal/i.test(msg)) cls = 'log-err';
+  div.className = 'log-entry ' + cls;
+
+  const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+  div.innerHTML = `<span class="log-time">${ts}</span>${msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}`;
+
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+
+  if (body.children.length > 500) body.removeChild(body.firstChild);
+}
+
+// ─── TX Pills ───
+
+function addTxPill(payload) {
+  const section = document.getElementById('txSection');
+  section.style.display = '';
+  const pills = document.getElementById('txPills');
+
+  const chainClass = payload.chain === 'Base' ? 'base' : 'sentinel';
+  const shortHash = payload.hash.length > 16 ? payload.hash.slice(0, 8) + '...' + payload.hash.slice(-6) : payload.hash;
+  const label = payload.label.split('(')[0].trim();
+
+  const a = document.createElement('a');
+  a.className = 'tx-pill glass';
+  a.href = payload.explorer;
+  a.target = '_blank';
+  a.innerHTML = `<span class="tx-dot ${chainClass}"></span>${label} — ${shortHash}`;
+  pills.appendChild(a);
+}
+
+// ─── Wallets ───
+
+function addWallet(payload) {
+  const section = document.getElementById('walletsSection');
+  section.style.display = '';
+  const grid = document.getElementById('walletsGrid');
+
+  const isBase = payload.chain === 'Base';
+  const cardClass = isBase ? 'base-w' : 'sentinel-w';
+  const tagClass = isBase ? 'tag-base' : 'tag-sentinel';
+  const tagText = isBase ? 'EIP-155:8453' : 'sentinelhub-2';
+  const shortAddr = payload.address.length > 30
+    ? payload.address.slice(0, 14) + '...' + payload.address.slice(-8)
+    : payload.address;
+
+  const div = document.createElement('div');
+  div.className = `wallet-card glass ${cardClass}`;
+  div.innerHTML = `
+    <div class="wallet-role">${payload.role}</div>
+    <span class="wallet-chain-tag ${tagClass}">${tagText}</span>
+    <div class="wallet-addr">
+      <a href="${payload.explorer}" target="_blank">${shortAddr}</a>
+    </div>
+  `;
+  grid.appendChild(div);
+}
+
+// ─── Connection ───
+
+function showConnection(payload) {
+  document.getElementById('connSection').style.display = '';
+  document.getElementById('connDot').className = 'conn-dot';
+  document.getElementById('connStatusText').textContent = 'Connected';
+  document.getElementById('connStatusText').style.color = 'var(--accent-green)';
+  document.getElementById('connSession').textContent = payload.sessionId || '--';
+  document.getElementById('connProtocol').textContent = payload.protocol || '--';
+  document.getElementById('connNode').textContent = payload.node ? payload.node.slice(0, 16) + '...' : '--';
+  document.getElementById('connLocation').textContent = [payload.city, payload.country].filter(Boolean).join(', ') || '--';
+  document.getElementById('connTime').textContent = payload.connectTime || '--';
+}
+
+// ─── Fee Grant ───
+
+function showFeeGrant(payload) {
+  document.getElementById('fgSection').style.display = '';
+  const initial = parseInt(payload.remaining || '5000000');
+  document.getElementById('fgMeterFill').style.width = '100%';
+  document.getElementById('fgInitial').textContent = initial.toLocaleString() + ' ' + (payload.denom || 'udvpn');
+  document.getElementById('fgRemaining').textContent = initial.toLocaleString() + ' ' + (payload.denom || 'udvpn');
+  if (payload.granter) document.getElementById('fgGranter').textContent = payload.granter.slice(0, 10) + '...' + payload.granter.slice(-5);
+  if (payload.grantee) document.getElementById('fgGrantee').textContent = payload.grantee.slice(0, 10) + '...' + payload.grantee.slice(-5);
+  if (payload.expiration) document.getElementById('fgExpires').textContent = payload.expiration.slice(0, 16).replace('T', ' ');
+  if (payload.allowedMessages?.length > 0) {
+    document.getElementById('fgMsgs').innerHTML = payload.allowedMessages
+      .map(m => `<li>${m.split('.').pop()}</li>`).join('');
+  }
+}
+
+// ─── Actions ───
+
+async function startTest() {
+  const btn = document.getElementById('btnStart');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = 'Starting...';
+
+  // Clear previous UI
+  document.getElementById('stepsBody').innerHTML = '';
+  document.getElementById('stepsEmpty').style.display = '';
+  document.getElementById('logBody').innerHTML = '<div class="log-entry" style="color:var(--text-dim)">Starting test...</div>';
+  document.getElementById('txPills').innerHTML = '';
+  document.getElementById('txSection').style.display = 'none';
+  document.getElementById('walletsGrid').innerHTML = '';
+  document.getElementById('walletsSection').style.display = 'none';
+  document.getElementById('connSection').style.display = 'none';
+  document.getElementById('fgSection').style.display = 'none';
+  document.getElementById('statResult').textContent = '--';
+  document.getElementById('statResult').className = 'stat-value';
+  document.getElementById('statResult').style.color = '';
+  document.getElementById('statResultSub').textContent = 'waiting';
+  document.getElementById('statTime').textContent = '--';
+  document.getElementById('statUsdc').textContent = '--';
+  document.getElementById('statConnect').textContent = '--';
+  document.getElementById('statSession').textContent = '--';
+  document.getElementById('currentAction').textContent = '';
+  document.getElementById('currentAction').style.color = '';
+
+  try {
+    const res = await fetch('/api/start', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      appendLog('Start failed: ' + (data.error || 'unknown'));
+      btn.disabled = false;
+      btn.classList.remove('loading');
+      btn.textContent = 'Run E2E Test';
+    }
+  } catch (e) {
+    appendLog('Start failed: ' + e.message);
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = 'Run E2E Test';
+  }
+}
+
+async function stopTest() {
+  const btn = document.getElementById('btnStop');
+  btn.disabled = true;
+  btn.textContent = 'Stopping...';
+  try {
+    await fetch('/api/stop', { method: 'POST' });
+  } catch {}
+}
+
+// ─── Init ───
+// Fast initial state fetch, then connect SSE
+fetch('/api/state').then(r => r.json()).then(d => {
+  if (d.state) { state = d.state; applyState(); }
+}).catch(() => {});
+
+connectSSE();
 </script>
 
 </body>
