@@ -1434,6 +1434,26 @@ section h3 {
     <div class="code-block" style="margin-bottom: 24px;">
       <div class="bar">
         <div class="dots"><span></span><span></span><span></span></div>
+        <div class="label">Step 0: Prerequisites &mdash; fund an EVM key with USDC on Base</div>
+      </div>
+      <pre><code><span class="cm">// You need ONE thing: an EVM private key with &gt;= $1.00 USDC on Base (chainId 8453).</span>
+<span class="cm">// No ETH needed &mdash; EIP-3009 is gasless from the agent side (facilitator pays Base gas).</span>
+<span class="cm">// No P2P needed &mdash; the operator fee-grants Sentinel gas after provisioning.</span>
+<span class="cm">//</span>
+<span class="cm">// How to fund a fresh EVM key with USDC on Base:</span>
+<span class="cm">//   * Coinbase / any CEX with Base withdrawals: withdraw USDC, pick "Base" as network.</span>
+<span class="cm">//   * Canonical bridge: bridge.base.org (ETH L1 &rarr; Base, ~10 min).</span>
+<span class="cm">//   * Third-party bridges: Across, Stargate (faster, small fee).</span>
+<span class="cm">//   * Already on Base? Swap ETH &rarr; USDC on Uniswap or Aerodrome.</span>
+<span class="cm">//</span>
+<span class="cm">// USDC contract on Base: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (6 decimals, native).</span>
+<span class="cm">// Verify balance:</span>
+<span class="kw">const</span> bal <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`https://api.basescan.org/api?module=account&action=tokenbalance&contractaddress=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913&address=${addr}`</span>)<span class="op">;</span></code></pre>
+    </div>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="dots"><span></span><span></span><span></span></div>
         <div class="label">Step 1: Create Sentinel wallet + set up x402 payment client</div>
       </div>
       <pre><code><span class="kw">import</span> { <span class="fn">x402Client</span>, <span class="fn">wrapFetchWithPayment</span> } <span class="kw">from</span> <span class="str">'@x402/fetch'</span><span class="op">;</span>

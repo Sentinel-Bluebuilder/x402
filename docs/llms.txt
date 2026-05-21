@@ -4,9 +4,23 @@
 
 The agent signs an EIP-3009 message off-chain. The self-hosted facilitator settles USDC on Base (~2s). The server provisions a Sentinel subscription share + a fee grant in one atomic TX. The agent then opens a direct WireGuard/V2Ray tunnel to a node. The operator never sees the tunnel or the traffic.
 
+## Prerequisites
+
+The agent needs exactly one thing before calling x402: an EVM private key with at least $1.00 USDC on Base (chainId 8453). Everything else — Sentinel wallet, P2P gas, node selection, tunnel keys — is provisioned by x402 or generated locally by `blue-js-sdk/ai-path`.
+
+How to fund a fresh EVM key with USDC on Base:
+- **Coinbase / Coinbase CDP**: withdraw USDC and pick "Base" as the network. ~30 seconds, no bridge fee.
+- **Any CEX that supports Base withdrawals** (Binance, Kraken, OKX, Bybit): same flow.
+- **Bridge from Ethereum L1**: use `bridge.base.org` (canonical bridge) or any third-party bridge (Across, Stargate). USDC on Base is native after Circle's CCTP — no wrapped tokens.
+- **DEX swap on Base**: if the wallet already holds ETH on Base, swap to USDC on Uniswap or Aerodrome.
+
+Confirm with: `curl https://api.basescan.org/api?module=account&action=tokenbalance&contractaddress=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913&address=<your_addr>`
+
+No ETH is required for the agent's wallet — EIP-3009 `transferWithAuthorization` is gasless from the agent's side (the facilitator pays Base gas).
+
 ## Live endpoints
 
-Base URL: `https://x402.blue`
+Base URL: `https://x402.sentinel.co`
 
 Paid (HTTP 402, body `{ "sentinelAddr": "sent1..." }`):
 - POST `/vpn/connect/1day` — $0.033 USDC, 1 day
@@ -57,7 +71,7 @@ const client = new x402Client();
 client.register('eip155:8453', scheme);
 const paidFetch = wrapFetchWithPayment(fetch, client);
 
-const res = await paidFetch('https://x402.blue/vpn/connect/30days', {
+const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ sentinelAddr: wallet.address }),
@@ -126,7 +140,7 @@ Hit `GET /manifest` first. It returns the entire protocol — endpoints, pricing
 
 ## Source
 
-- README: https://github.com/x402-blue/x402/blob/main/README.md
-- Manifesto: https://github.com/x402-blue/x402/blob/main/MANIFESTO.md
+- README: https://github.com/Sentinel-Bluebuilder/x402/blob/master/README.md
+- Manifesto: https://github.com/Sentinel-Bluebuilder/x402/blob/master/MANIFESTO.md
 - x402 spec: https://github.com/coinbase/x402
 - Sentinel: https://sentinel.co
