@@ -181,7 +181,7 @@ app.get('/manifest', (_req, res) => {
     description: 'Pay USDC, get a Sentinel dVPN subscription. One HTTP request, one EIP-3009 signature.',
     tldr: [
       'You need: (a) an EVM wallet with USDC on Base, (b) a Sentinel wallet from `createWallet()` in `blue-js-sdk/ai-path`.',
-      `POST ${network === 'eip155:8453' ? 'https://x402.blue' : '/'}/vpn/connect/30days with { sentinelAddr } using @x402/fetch to auto-sign the 402.`,
+      `POST ${network === 'eip155:8453' ? 'https://x402.sentinel.co' : '/'}/vpn/connect/30days with { sentinelAddr } using @x402/fetch to auto-sign the 402.`,
       'Take { subscriptionId, feeGranter, nodeAddress } from the 200 response and pass them to `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`.',
       'Tunnel is up. You paid $1.00 USDC, zero gas on Base, zero gas on Sentinel.',
     ],
@@ -332,7 +332,7 @@ app.get('/manifest', (_req, res) => {
         `client.register('${network}', scheme);`,
         'const paidFetch = wrapFetchWithPayment(fetch, client);',
         '',
-        "const res = await paidFetch('https://x402.blue/vpn/connect/30days', {",
+        "const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {",
         "  method: 'POST',",
         '  body: JSON.stringify({ sentinelAddr: wallet.address }),',
         '});',
@@ -382,8 +382,8 @@ app.get('/manifest', (_req, res) => {
     },
     docs: {
       llmsTxt: '/llms.txt',
-      readme: 'https://github.com/anthropics/x402',
-      manifesto: 'https://x402.blue/manifesto',
+      readme: 'https://github.com/Sentinel-Bluebuilder/x402',
+      manifesto: 'https://github.com/Sentinel-Bluebuilder/x402/blob/master/MANIFESTO.md',
     },
   });
 });
