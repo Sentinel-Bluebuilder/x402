@@ -495,21 +495,6 @@ nav .links a:hover { color: var(--accent-bright); }
   background: rgba(0, 255, 102, 0.025);
 }
 
-.code-block .bar .dots {
-  display: flex; gap: 6px;
-}
-
-.code-block .bar .dots span {
-  width: 9px; height: 9px;
-  border-radius: 50%;
-  background: rgba(0, 255, 102, 0.18);
-  box-shadow: 0 0 6px rgba(0, 255, 102, 0.25);
-}
-
-.code-block .bar .dots span:first-child { background: rgba(255, 93, 108, 0.6); box-shadow: 0 0 6px rgba(255, 93, 108, 0.5); }
-.code-block .bar .dots span:nth-child(2) { background: rgba(255, 181, 71, 0.6); box-shadow: 0 0 6px rgba(255, 181, 71, 0.5); }
-.code-block .bar .dots span:last-child  { background: rgba(0, 255, 102, 0.7);   box-shadow: 0 0 6px rgba(0, 255, 102, 0.55); }
-
 .code-block .bar .label {
   font-size: 10.5px;
   color: var(--text-muted);
@@ -1199,7 +1184,6 @@ section h3 {
     <div class="code-preview fade-in">
       <div class="code-block">
         <div class="bar">
-          <div class="dots"><span></span><span></span><span></span></div>
           <div class="label">Direct flow &mdash; agent manages its own P2P and gas</div>
         </div>
         <pre><code><span class="kw">import</span> { <span class="fn">createWallet</span>, <span class="fn">connectDirect</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk'</span><span class="op">;</span>
@@ -1369,17 +1353,13 @@ section h3 {
     <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 18px; letter-spacing: 1.5px; text-transform: uppercase;">&#9679; Direct Flow &mdash; Live Now</h3>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Install &mdash; Direct flow (agent manages P2P + gas)</div>
+      <div class="bar">        <div class="label">Install &mdash; Direct flow (agent manages P2P + gas)</div>
       </div>
       <pre><code><span class="fn">npm install</span> blue-js-sdk</code></pre>
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Connect to VPN &mdash; agent pays node directly</div>
+      <div class="bar">        <div class="label">Connect to VPN &mdash; agent pays node directly</div>
       </div>
       <pre><code><span class="kw">import</span> { <span class="fn">createWallet</span>, <span class="fn">connectDirect</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk'</span><span class="op">;</span>
 
@@ -1404,9 +1384,7 @@ section h3 {
     </div>
 
     <div class="code-block" style="margin-bottom: 48px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Direct flow &mdash; what the agent manages</div>
+      <div class="bar">        <div class="label">Direct flow &mdash; what the agent manages</div>
       </div>
       <pre><code><span class="cm">// The agent controls the full lifecycle:</span>
 <span class="cm">//</span>
@@ -1424,17 +1402,13 @@ section h3 {
     <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 18px; letter-spacing: 1.5px; text-transform: uppercase;">&#9679; Managed Plan Flow &mdash; Live Now</h3>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Install &mdash; Managed plan (x402 handles everything)</div>
+      <div class="bar">        <div class="label">Install &mdash; Managed plan (x402 handles everything)</div>
       </div>
       <pre><code><span class="fn">npm install</span> @x402/fetch @x402/evm blue-js-sdk viem</code></pre>
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Step 0: Prerequisites &mdash; fund an EVM key with USDC on Base</div>
+      <div class="bar">        <div class="label">Step 0: Prerequisites &mdash; fund an EVM key with USDC on Base</div>
       </div>
       <pre><code><span class="cm">// You need ONE thing: an EVM private key with &gt;= $1.00 USDC on Base (chainId 8453).</span>
 <span class="cm">// No ETH needed &mdash; EIP-3009 is gasless from the agent side (facilitator pays Base gas).</span>
@@ -1452,9 +1426,7 @@ section h3 {
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Step 1: Create Sentinel wallet + set up x402 payment client</div>
+      <div class="bar">        <div class="label">Step 1: Create Sentinel wallet + set up x402 payment client</div>
       </div>
       <pre><code><span class="kw">import</span> { <span class="fn">x402Client</span>, <span class="fn">wrapFetchWithPayment</span> } <span class="kw">from</span> <span class="str">'@x402/fetch'</span><span class="op">;</span>
 <span class="kw">import</span> { <span class="fn">ExactEvmScheme</span> } <span class="kw">from</span> <span class="str">'@x402/evm/exact/client'</span><span class="op">;</span>
@@ -1482,9 +1454,7 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Step 2: Buy 30 days of VPN &mdash; Base mainnet</div>
+      <div class="bar">        <div class="label">Step 2: Buy 30 days of VPN &mdash; Base mainnet</div>
       </div>
       <pre><code><span class="cm">// Request VPN access &mdash; 402 &rarr; auto-sign &rarr; facilitator settles &rarr; provisioned</span>
 <span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">paidFetch</span>(<span class="str">'https://x402.sentinel.co/vpn/connect/30days'</span><span class="op">,</span> {
@@ -1507,9 +1477,7 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Step 3: Connect to VPN &mdash; use provisioned credentials</div>
+      <div class="bar">        <div class="label">Step 3: Connect to VPN &mdash; use provisioned credentials</div>
       </div>
       <pre><code><span class="cm">// connect(), createWallet(), rpcQueryNodesForPlan(), createRpcQueryClientWithFallback()</span>
 <span class="cm">// already imported above from 'blue-js-sdk/ai-path'</span>
@@ -1541,9 +1509,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Under the hood &mdash; what x402 does for you</div>
+      <div class="bar">        <div class="label">Under the hood &mdash; what x402 does for you</div>
       </div>
       <pre><code><span class="cm">// 1. Agent sends POST /vpn/connect/30days</span>
 <span class="cm">//    &rarr; Server returns HTTP 402 + PAYMENT-REQUIRED header</span>
@@ -1569,9 +1535,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Error handling &mdash; fee grant pre-check errors</div>
+      <div class="bar">        <div class="label">Error handling &mdash; fee grant pre-check errors</div>
       </div>
       <pre><code><span class="kw">try</span> {
   <span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
@@ -1593,9 +1557,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     <h3 style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px; margin-top: 48px; letter-spacing: 1.5px; text-transform: uppercase;">Both Flows</h3>
 
     <div class="code-block">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Check pricing (free, no payment)</div>
+      <div class="bar">        <div class="label">Check pricing (free, no payment)</div>
       </div>
       <pre><code><span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://x402.sentinel.co/pricing'</span>)<span class="op">;</span>
 <span class="kw">const</span> pricing <span class="op">=</span> <span class="kw">await</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
@@ -1705,9 +1667,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     <p class="desc">All <code>/vpn/connect/*</code> routes return HTTP 402 until USDC payment is settled. Free endpoints require no payment.</p>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">x402-Protected (payment required)</div>
+      <div class="bar">        <div class="label">x402-Protected (payment required)</div>
       </div>
       <pre><code><span class="fn">POST</span> /vpn/connect/1day     <span class="cm">$0.033 USDC</span>
 <span class="fn">POST</span> /vpn/connect/7days    <span class="cm">$0.233 USDC</span>
@@ -1719,9 +1679,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Free endpoints (no payment)</div>
+      <div class="bar">        <div class="label">Free endpoints (no payment)</div>
       </div>
       <pre><code><span class="fn">GET</span> /pricing              <span class="cm">Tiers, network, asset info</span>
 <span class="fn">GET</span> /nodes                <span class="cm">Plan nodes &mdash; agent picks or server picks random</span>
@@ -1730,9 +1688,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">402 Response &mdash; PAYMENT-REQUIRED header (base64 JSON)</div>
+      <div class="bar">        <div class="label">402 Response &mdash; PAYMENT-REQUIRED header (base64 JSON)</div>
       </div>
       <pre><code>{
   <span class="str">"x402Version"</span>: <span class="num">2</span>,
@@ -1759,9 +1715,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     <p class="desc">Everything in one script. Pay USDC on Base, get provisioned, connect to VPN, verify IP changed, disconnect. Zero P2P tokens needed.</p>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">e2e-vpn.mjs &mdash; complete agent script (copy-paste ready)</div>
+      <div class="bar">        <div class="label">e2e-vpn.mjs &mdash; complete agent script (copy-paste ready)</div>
       </div>
       <pre><code><span class="cm">// npm install @x402/fetch @x402/evm blue-js-sdk viem</span>
 
@@ -1828,9 +1782,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">Provisioning response &mdash; full shape</div>
+      <div class="bar">        <div class="label">Provisioning response &mdash; full shape</div>
       </div>
       <pre><code>{
   <span class="str">"provisioned"</span>: <span class="kw">true</span>,
@@ -1920,9 +1872,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     <p class="desc">All operator-specific variables are in <code>.env</code>. Change these to deploy your own instance with your own wallet, plan, and pricing.</p>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">server/.env &mdash; all configurable variables</div>
+      <div class="bar">        <div class="label">server/.env &mdash; all configurable variables</div>
       </div>
       <pre><code><span class="cm"># ─── Base Chain (EVM) ───</span>
 
@@ -1976,9 +1926,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block" style="margin-top: 24px;">
-      <div class="bar">
-        <div class="dots"><span></span><span></span><span></span></div>
-        <div class="label">sentinel.ts &mdash; tunable constants (in source code)</div>
+      <div class="bar">        <div class="label">sentinel.ts &mdash; tunable constants (in source code)</div>
       </div>
       <pre><code><span class="cm">// Bytes to allocate per agent &mdash; how much data each agent can use</span>
 <span class="kw">const</span> <span class="fn">SHARE_BYTES</span> <span class="op">=</span> <span class="num">1_000_000_000</span><span class="op">;</span>  <span class="cm">// 1 GB per agent</span>
