@@ -1263,10 +1263,10 @@ section h3 {
         </div>
       </div>
 
-      <div class="path-card building">
-        <span class="path-badge soon">Building Now</span>
+      <div class="path-card active">
+        <span class="path-badge live">Live Now</span>
         <h3>Managed Plan &mdash; x402 handles it</h3>
-        <p class="path-desc">Agent pays USDC via HTTP 402. We add the agent to our subscription plan, grant gas allowance, and the agent connects with one command. Zero gas on Sentinel.</p>
+        <p class="path-desc">Agent pays USDC via HTTP 402 &mdash; live at <code>x402.sentinel.co</code>, from $0.033 for a day to $1.00 for 30 days. We add the agent to our subscription plan, grant gas allowance, and the agent connects with one command. Zero gas on Sentinel.</p>
         <ul class="path-steps">
           <li>Agent sends <code>POST /vpn/connect/30days</code></li>
           <li>Server returns HTTP 402 + payment details</li>
@@ -1277,7 +1277,7 @@ section h3 {
         </ul>
         <div class="path-traits">
           <div class="path-trait"><span class="label">Gas</span><span class="val">$0 &mdash; fee granted by operator</span></div>
-          <div class="path-trait"><span class="label">Node choice</span><span class="val">Nodes in our plan</span></div>
+          <div class="path-trait"><span class="label">Node choice</span><span class="val">726 nodes in our plan (<code>GET /nodes</code>)</span></div>
           <div class="path-trait"><span class="label">Trust</span><span class="val">Minimal &mdash; tunnel still direct</span></div>
           <div class="path-trait"><span class="label">Best for</span><span class="val">Quick integration</span></div>
         </div>
@@ -1287,9 +1287,19 @@ section h3 {
     <!-- ─── Step Zero (Direct path): agent buys P2P from MEXC via API ─── -->
     <div style="margin-top: 56px;">
       <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 10px; letter-spacing: 1.5px; text-transform: uppercase;">
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="vertical-align: -2px; margin-right: 7px;" aria-label="MEXC"><polygon points="6,4 11,12 6,20 1,12"/><polygon points="18,4 23,12 18,20 13,12"/><polygon points="12,7.5 16.2,14 12,20 7.8,14" opacity="0.65"/></svg>Step zero &mdash; agent buys P2P on MEXC, fully by API
+        Step zero &mdash; agent buys P2P on MEXC, fully by API
       </h3>
       <p class="desc" style="margin-bottom: 18px;">No human, no UI. The agent market-buys P2P with USDT on MEXC spot &mdash; the <code>P2PUSDT</code> pair is live (maker fee 0%, taker 0.05%, minimum market order 1 USDT) &mdash; then withdraws the tokens to its own Sentinel wallet. Three signed HTTP calls, no SDK required. Auth is an <code>X-MEXC-APIKEY</code> header plus an HMAC-SHA256 signature of the query string.</p>
+
+      <!-- MEXC banner — click through to the live P2P/USDT market -->
+      <a href="https://www.mexc.com/exchange/P2P_USDT" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 16px; margin-bottom: 22px; padding: 16px 22px; border: 1px solid rgba(43, 108, 255, 0.5); border-radius: 10px; background: linear-gradient(135deg, rgba(43, 108, 255, 0.14), rgba(43, 108, 255, 0.05)); text-decoration: none;" onmouseover="this.style.borderColor='rgba(43,108,255,0.9)'" onmouseout="this.style.borderColor='rgba(43,108,255,0.5)'">
+        <img src="data:image/png;base64,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g6fEKVCveBvyll9zqs3vZhkXIdij5decavMbhlkAJlm8Cus5DBckUQB2RsocSm96actnGC5+7EiEYF8FYPlUw99rVh0UQHR1v4rMppe2vL1mNWBaugmJU6A/BNqQ0mh34E7enhwR8b/STUicAvmZASyG31WeNsvslB9wyheApfXybjZ7zak2T5tlBE6fyxeAl/+QbV5zqq2Gmep+E4kBR+Y6QMAnkXbK2e41p9rSkuhUuRfdCGUZmQKo/b71GkfUGvu8rJFoRKYA0upErTds2V76vE3q81S5F22J7bOQvBXiWLCtfGoeSSN+1u5CK4K/uVwBnIVphQfTuMrRf+63MEZ9CxAnkqttsjfDpSwwFW2zvRlCpSPoooAj1JO/priUPVOQLYCUBY5E22zvTRXr/vdJ36GOmTfgSPo2c/nboc9CU8Gp0Al+DX6uqKbvYvsWiYA3GltMg3SD3wziCNHg4xLT7c4H2t0o4kU8h82ndJzg1/CAXpEEAGdhaOKpCosiJrjAT9rdKOYSP8Ha0+QCTrUOfkB7R9hZGMLK1BzQ4AsOTG11zG0cZrjEAWDk/qyA0+tjQLELFgzisfK7A9SmYDXav3k65z9Wa/9bN6wYxD4ifoHsOwRmiDi6Xi9/eAZxeF0EPcFWpwg4MvFMJWifAi1Kq0MHkDslOsElnjzYgx9It0sEHAhmsRNc4pmVgx+wNAMsSg/UPS60SjTCLk7wPtgKg9rK/ebpkS0B7yxeV7FZAHPpP6UP4CVih+W7gAbAJ1zgneuQm8P8N0+PtG//bM6ABgEf8SdGln9z2wWwaBB7uMI+AvoIeIqIPaRz18WHJ80QMEPABFf4AwETXGBs+T/ANP7mRERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERES05i+Vhd12LSf8ZQAAAABJRU5ErkJggg==" alt="MEXC logo" width="38" height="38" style="flex-shrink: 0; border-radius: 8px;">
+        <span style="display: flex; flex-direction: column; gap: 3px;">
+          <span style="color: #e8f1ff; font-weight: 700; font-size: 15px; letter-spacing: 0.3px;">Buy P2P on MEXC</span>
+          <span style="color: #7da3e8; font-size: 12.5px;">Live spot market &middot; P2P/USDT &middot; mexc.com/exchange/P2P_USDT</span>
+        </span>
+        <span style="margin-left: auto; color: #2b6cff; font-size: 20px;">&rarr;</span>
+      </a>
 
       <div class="code-block">
         <div class="bar">        <div class="label">MEXC Spot API v3 &mdash; market-buy P2P, withdraw to the agent's Sentinel wallet</div>
@@ -1333,8 +1343,8 @@ section h3 {
     </div>
 
     <div class="current-note">
-      <strong>Current status:</strong> The Direct flow is live &mdash; the committed code handles USDC-to-P2P conversion and the agent managing its own Sentinel sessions.
-      The Managed Plan flow (x402 HTTP 402 server with automatic subscription provisioning) is actively being built and will be the primary integration path.
+      <strong>Current status:</strong> Both flows are live. The Direct flow handles USDC-to-P2P conversion and the agent managing its own Sentinel sessions.
+      The Managed Plan flow (x402 HTTP 402 server with automatic subscription provisioning) is the primary integration path &mdash; running now at <code>https://x402.sentinel.co</code> with 726 active nodes in the plan and pricing from $0.033 (1 day) to $1.00 (30 days).
       Both flows use the same Sentinel network and the same WireGuard/V2Ray tunnels. The only difference is who manages the gas and the subscription.
     </div>
   </div>
@@ -1347,7 +1357,7 @@ section h3 {
   <div class="container">
     <div class="section-label">Managed Plan Flow</div>
     <h2>How x402 subscription works</h2>
-    <p class="desc">The flow we're building. Agent sends one HTTP request. Payment, settlement, subscription provisioning, and fee granting all happen automatically.</p>
+    <p class="desc">Live at <code>https://x402.sentinel.co</code>. Agent sends one HTTP request. Payment, settlement, subscription provisioning, and fee granting all happen automatically.</p>
 
     <div class="flow-steps">
       <div class="flow-step">
@@ -1396,7 +1406,7 @@ section h3 {
   <div class="container">
     <div class="section-label">Integration</div>
     <h2>Two integration paths</h2>
-    <p class="desc">Go fully autonomous with <code>blue-js-sdk</code> (live now) or let the x402 server handle everything with <code>@x402/fetch</code> (building now). Both give you private internet access through the same Sentinel network.</p>
+    <p class="desc">Go fully autonomous with <code>blue-js-sdk</code> or let the x402 server handle everything with <code>@x402/fetch</code> &mdash; both live now. Both give you private internet access through the same Sentinel network.</p>
 
     <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 18px; letter-spacing: 1.5px; text-transform: uppercase;">&#9679; Direct Flow &mdash; Live Now</h3>
 
@@ -1444,7 +1454,7 @@ section h3 {
 <span class="cm">// 6. Tunnel: Agent handshakes directly with VPN node (WireGuard/V2Ray)</span>
 <span class="cm">//</span>
 <span class="cm">// Zero middlemen. Zero trust required. Full autonomy.</span>
-<span class="cm">// This is what the current committed code implements.</span></code></pre>
+<span class="cm">// All of this ships in blue-js-sdk today.</span></code></pre>
     </div>
 
     <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 18px; letter-spacing: 1.5px; text-transform: uppercase;">&#9679; Managed Plan Flow &mdash; Live Now</h3>
