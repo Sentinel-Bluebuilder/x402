@@ -26,6 +26,7 @@ CLAUDE.md
 wallets.env
 *.key
 *.secret
+fresh-test/live-e2e-agent-keys.txt
 
 # Memory (local session state)
 memory/

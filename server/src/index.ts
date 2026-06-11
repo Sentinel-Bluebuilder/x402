@@ -4,7 +4,7 @@ import { paymentMiddleware, x402ResourceServer } from '@x402/express';
 import { ExactEvmScheme } from '@x402/evm/exact/server';
 import { createFacilitatorConfig } from '@coinbase/x402';
 import { HTTPFacilitatorClient, type FacilitatorConfig } from '@x402/core/server';
-import { initSentinel, provisionAgent, checkAgentStatus, getPlanNodes } from './sentinel.js';
+import { initSentinel, provisionAgent, checkAgentStatus, getPlanNodes, checkProvisioningCapacity } from './sentinel.js';
 import { createSelfHostedFacilitator, startFacilitatorServer } from './facilitator.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -78,7 +78,7 @@ app.use(express.json());
 const VALID_TIERS = new Set(['1day', '7days', '30days']);
 const SENTINEL_ADDR_RE = /^sent1[0-9a-z]{38}$/;
 
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   if (req.method !== 'POST') return next();
   const m = req.path.match(/^\/vpn\/connect\/([^/]+)$/);
   if (!m) return next();
@@ -114,6 +114,27 @@ app.use((req, res, next) => {
       nextAction: "Use the `address` field returned by createWallet() from 'blue-js-sdk/ai-path' — do not hand-construct this.",
       docs: '/manifest',
     });
+  }
+
+  // Capacity check — if the operator provably cannot provision (subscription
+  // pool full + spendable P2P below the new-subscription cost), reject before
+  // the agent is asked to pay. Cached 60s in sentinel.ts; fails open on chain
+  // errors (settlement only happens after a 2xx, so a wrong "ok" never charges
+  // an agent for a failed provision).
+  try {
+    const capacity = await checkProvisioningCapacity();
+    if (!capacity.ok) {
+      console.error('[x402] Rejecting pre-payment — no capacity:', capacity.reason);
+      return res.status(503).json({
+        code: 'CAPACITY_EXHAUSTED',
+        message: `Cannot provision right now: ${capacity.reason}. You have NOT been charged — this check runs before payment.`,
+        nextAction: 'Retry later. Capacity is re-checked every 60 seconds; GET /health reports current capacity.',
+        retryAfterSeconds: 60,
+        docs: '/manifest',
+      });
+    }
+  } catch (err) {
+    console.warn('[x402] Capacity check errored (continuing):', (err as Error).message);
   }
 
   next();
@@ -167,10 +188,14 @@ app.use(
 function sendProvisionError(res: express.Response, err: unknown) {
   const message = (err as Error).message;
   console.error('[x402] Provision failed:', message);
+  // @x402/express buffers this response and skips USDC settlement for any
+  // status >= 400 — the agent is NOT charged when provisioning fails.
   res.status(500).json({
     code: 'PROVISIONING_FAILED',
-    message,
-    nextAction: 'Safe to retry once. EIP-3009 nonce prevents double-charge. If it persists, GET /agent/{sentinelAddr} to inspect chain state.',
+    message: `Sentinel provisioning failed: ${message}`,
+    charged: false,
+    note: 'Your USDC was NOT charged. Settlement only happens after a successful (2xx) response; error responses skip settlement entirely.',
+    nextAction: 'Safe to retry — no payment was taken. If it persists, GET /agent/{sentinelAddr} to inspect chain state and GET /health for operator capacity.',
     docs: '/manifest',
   });
 }
@@ -360,11 +385,12 @@ app.get('/manifest', (_req, res) => {
           INVALID_SENTINEL_ADDR: { status: 400, meaning: "sentinelAddr is not a valid sent1-bech32 address — use createWallet() from 'blue-js-sdk/ai-path'." },
           UNKNOWN_TIER: { status: 404, meaning: 'Path tier is not one of 1day | 7days | 30days.' },
           PAYMENT_REQUIRED: { status: 402, meaning: 'Sign EIP-3009 transferWithAuthorization and resend with PAYMENT-SIGNATURE header. @x402/fetch handles this automatically.' },
-          PROVISIONING_FAILED: { status: 500, meaning: 'Payment settled but Sentinel TX failed. Safe to retry once; EIP-3009 nonce prevents double-charge.' },
+          CAPACITY_EXHAUSTED: { status: 503, meaning: 'Operator cannot provision right now (subscription pool full and operator balance below new-subscription cost). Returned BEFORE payment — no USDC charged. Retry later; re-checked every 60s.' },
+          PROVISIONING_FAILED: { status: 500, meaning: 'Sentinel TX failed after payment verification. USDC was NOT charged — settlement only happens after a successful 2xx response. Safe to retry.' },
           INTERNAL_ERROR: { status: 500, meaning: 'Unexpected server error. Open an issue if reproducible.' },
           NOT_FOUND: { status: 404, meaning: 'No route matches. See /manifest for endpoints.' },
         },
-        prePaymentGuarantee: 'MISSING_SENTINEL_ADDR / INVALID_SENTINEL_ADDR / UNKNOWN_TIER are returned BEFORE paymentMiddleware. Agents are never charged USDC for guaranteed-failure requests.',
+        prePaymentGuarantee: 'MISSING_SENTINEL_ADDR / INVALID_SENTINEL_ADDR / UNKNOWN_TIER / CAPACITY_EXHAUSTED are returned BEFORE paymentMiddleware. Beyond that, USDC settlement only occurs after a successful 2xx response — error responses (including PROVISIONING_FAILED) never charge the agent.',
       },
     },
     flow: [
@@ -442,7 +468,7 @@ app.get('/manifest', (_req, res) => {
       },
     },
     retry: {
-      networkErrors: 'Idempotent on the agent side — re-POST is safe if no 200 arrived. EIP-3009 nonce prevents double-charge.',
+      networkErrors: 'Idempotent on the agent side — re-POST is safe if no 200 arrived. Settlement only happens on a 2xx response, and the EIP-3009 nonce prevents double-charge.',
       after200: 'Provisioning is complete. If connect() fails, call GET /agent/:sentinelAddr to verify state before retrying connect().',
     },
     docs: {
@@ -453,8 +479,14 @@ app.get('/manifest', (_req, res) => {
   });
 });
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime() });
+app.get('/health', async (_req, res) => {
+  let capacity = null;
+  try {
+    capacity = await checkProvisioningCapacity();
+  } catch (err) {
+    console.warn('[x402] Health capacity check failed:', (err as Error).message);
+  }
+  res.json({ status: 'ok', uptime: process.uptime(), capacity });
 });
 
 // llms.txt — AI-readable summary (https://llmstxt.org convention)
@@ -463,7 +495,8 @@ app.get('/llms.txt', (_req, res) => {
   if (!llmsTxtCache) {
     try {
       llmsTxtCache = readFileSync(join(__dirname, '..', '..', 'docs', 'llms.txt'), 'utf8');
-    } catch {
+    } catch (err) {
+      console.warn('[x402] docs/llms.txt not readable, serving stub:', (err as Error).message);
       llmsTxtCache = '# x402\n\nSee /manifest for the machine-readable spec.\n';
     }
   }
@@ -534,7 +567,7 @@ async function provisionVpn(days: number, body: Record<string, unknown>) {
     throw new Error('Include sentinelAddr (sent1...) in request body');
   }
 
-  console.log(`[x402] Payment settled. Provisioning ${days} days for ${sentinelAddr}...`);
+  console.log(`[x402] Payment verified. Provisioning ${days} days for ${sentinelAddr}... (USDC settles only after a 2xx response)`);
   const result = await provisionAgent(sentinelAddr, days);
   return result;
 }

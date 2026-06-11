@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-06-11 — Settlement-Truth Audit: Capacity Guard + RPC-First Nodes + Docs Corrections
+
+Full re-audit of the live site (`x402.sentinel.co`) against the repo, triggered by a live `PROVISIONING_FAILED` whose root cause was the operator wallet's spendable balance (9,250 P2P) falling below the plan-41 new-subscription cost (~20,779 P2P deposit, quote_value 25,974 P2P).
+
+### Server — `server/src/sentinel.ts`
+
+- **Plan-price discovery via RPC raw protobuf.** Sentinel LCDs return `Not Implemented` (code 12) for every `/sentinel/plan/v3/plans/{id}` endpoint, so the plan price now comes from `rpcQueryPlan()` raw bytes parsed by a denom-anchored protobuf scanner (`parsePlanPriceUdvpn`). Validated live against plan 41: quote_value `25974025974` udvpn. Cached 1h, serves stale on chain failure.
+- **Operator-balance pre-check.** `createNewSubscription()` now throws `OPERATOR_BALANCE_LOW` *before* broadcasting when spendable udvpn < plan price — no more burned gas on guaranteed-failure `MsgStartSubscription`.
+- **`checkProvisioningCapacity()`** (exported, 60s cache): ok when the pool has a subscription with <8 allocations; otherwise compares operator spendable vs plan price. Fails open on chain errors — safe because settlement only happens on 2xx, so a wrong "ok" never charges the agent.
+- **`getPlanNodes()` is RPC-first** via `rpcQueryNodesForPlan(client, planId, { status: 1, limit: 5000 })` (the SDK default limit of 500 silently truncates). LCD is fallback; stale cache is last resort.
+- Startup now logs operator spendable vs new-subscription cost and warns when the operator cannot fund the next subscription.
+- Bare `catch {}` blocks replaced with logged catches; LCD-only SDK helpers (`querySubscriptions`, `hasActiveSubscription`) marked as tech debt pending RPC decoders in blue-js-sdk.
+
+### Server — `server/src/index.ts`
+
+- **New pre-payment code `CAPACITY_EXHAUSTED` (503).** Returned *before* `paymentMiddleware` when the pool is full and the operator cannot fund a new subscription — agents are never charged for a request the operator cannot fulfil. Fail-open on check errors. `retryAfterSeconds: 60`.
+- **`PROVISIONING_FAILED` wording corrected.** The old message claimed "payment settled". Verified in `@x402/express` dist source: the middleware buffers the handler response and **skips settlement entirely when status ≥ 400** — USDC settles only after a 2xx. The error body now states `charged: false` and that retrying is safe.
+- `/manifest` errors, `prePaymentGuarantee`, and `retry.networkErrors` updated to the same settlement-on-2xx-only truth; `CAPACITY_EXHAUSTED` documented.
+- `GET /health` now reports live capacity (`poolSlotAvailable`, operator spendable, new-subscription cost).
+
+### Docs
+
+- `docs/llms.txt` — error table gains `CAPACITY_EXHAUSTED` (503, pre-payment), `PROVISIONING_FAILED` row corrected to "USDC was **not** charged", pre-payment paragraph now states the settlement-on-2xx guarantee.
+- `docs/index.html` — agent-discovery `<link rel="alternate">` and `<meta>` targets are now absolute (`https://x402.sentinel.co/...`) so the GitHub Pages mirror points agents at the live API instead of 404ing relative paths.
+- `CLAUDE.md` — stale `blue-agent-connect` references replaced with `blue-js-sdk/ai-path` (4 sites).
+- This changelog's 2026-05-21 error table corrected (same wrong "Payment settled" claim).
+
+### Hosting
+
+- Repo published as our own hosted mirror: GitHub Pages from `master:/docs` at https://sentinel-bluebuilder.github.io/x402/.
+
+---
+
 ## 2026-05-21 — Agent-Friendliness: Structured Errors + SDK Event Contract Fix
 
 Closing the last gaps on agent-friendliness. Two ship lanes: the x402 server, and the underlying SDK consumers depend on.
@@ -25,7 +58,7 @@ Error codes published in `/manifest.response.errors.codes` and `docs/llms.txt`:
 | `INVALID_SENTINEL_ADDR` | 400 | yes | `sentinelAddr` does not match `^sent1[0-9a-z]{38}$` |
 | `UNKNOWN_TIER` | 404 | yes | Path tier is not `1day` \| `7days` \| `30days` |
 | `PAYMENT_REQUIRED` | 402 | — | Sign EIP-3009 and resend (handled automatically by `@x402/fetch`) |
-| `PROVISIONING_FAILED` | 500 | — | Payment settled but Sentinel TX failed. Safe to retry once |
+| `PROVISIONING_FAILED` | 500 | — | Sentinel TX failed after payment verification. USDC was NOT charged (settlement only happens on 2xx). Safe to retry |
 | `NOT_FOUND` | 404 | — | No route matches. See `/manifest` |
 | `INTERNAL_ERROR` | 500 | — | Unexpected server error |
 
