@@ -1313,13 +1313,16 @@ section h3 {
     <div class="code-preview fade-in">
       <div class="code-block">
         <div class="bar">
-          <div class="label">x402 &mdash; one paid HTTP request buys 30 days of VPN</div>
+          <div class="label">agent dVPN &mdash; use cases</div>
         </div>
-        <pre><code><span class="cm">// HTTP 402 &rarr; auto-sign USDC on Base &rarr; provisioned on Sentinel</span>
-<span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">paidFetch</span>(<span class="str">'https://x402.sentinel.co/vpn/connect/30days'</span><span class="op">,</span> {
-  <span class="prop">method</span><span class="op">:</span> <span class="str">'POST'</span><span class="op">,</span> <span class="prop">body</span><span class="op">:</span> JSON<span class="op">.</span><span class="fn">stringify</span>({ <span class="prop">sentinelAddr</span><span class="op">:</span> wallet<span class="op">.</span>address })<span class="op">,</span>
-})<span class="op">;</span>
-<span class="cm">// $1.00 USDC &mdash; subscription + fee grant. Zero gas on Sentinel.</span></code></pre>
+        <pre><code><span class="cm">// What AI agents use the dVPN for</span>
+<span class="kw">const</span> useCases <span class="op">=</span> [
+  <span class="str">'Privacy &mdash; mask the agent IP, no request traces back to its operator'</span><span class="op">,</span>
+  <span class="str">'Geo-restricted exchanges &mdash; trade on Hyperliquid &amp; region-locked venues'</span><span class="op">,</span>
+  <span class="str">'Geo-locked APIs &amp; data &mdash; fetch sources only served in certain countries'</span><span class="op">,</span>
+  <span class="str">'Anonymity at scale &mdash; rotate exits across 726 nodes to avoid IP bans'</span><span class="op">,</span>
+  <span class="str">'Censorship resistance &mdash; reach the open internet from blocked networks'</span><span class="op">,</span>
+]<span class="op">;</span></code></pre>
       </div>
     </div>
   </div>
