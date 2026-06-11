@@ -1248,7 +1248,7 @@ section h3 {
         <h3>Direct &mdash; Agent pays nodes</h3>
         <p class="path-desc">Agent holds P2P tokens, manages its own gas, and pays Sentinel nodes directly. Full autonomy. No intermediary in the payment or the tunnel.</p>
         <ul class="path-steps">
-          <li>Agent pays USDC on Base, receives P2P tokens</li>
+          <li>Agent buys P2P automatically (MEXC spot API &mdash; see below)</li>
           <li>Agent creates Sentinel wallet, holds own keys</li>
           <li>Agent queries nodes, picks by country/speed</li>
           <li>Agent starts session, pays node in P2P directly</li>
@@ -1282,6 +1282,54 @@ section h3 {
           <div class="path-trait"><span class="label">Best for</span><span class="val">Quick integration</span></div>
         </div>
       </div>
+    </div>
+
+    <!-- ─── Step Zero (Direct path): agent buys P2P from MEXC via API ─── -->
+    <div style="margin-top: 56px;">
+      <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 10px; letter-spacing: 1.5px; text-transform: uppercase;">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" style="vertical-align: -2px; margin-right: 7px;" aria-label="MEXC"><polygon points="6,4 11,12 6,20 1,12"/><polygon points="18,4 23,12 18,20 13,12"/><polygon points="12,7.5 16.2,14 12,20 7.8,14" opacity="0.65"/></svg>Step zero &mdash; agent buys P2P on MEXC, fully by API
+      </h3>
+      <p class="desc" style="margin-bottom: 18px;">No human, no UI. The agent market-buys P2P with USDT on MEXC spot &mdash; the <code>P2PUSDT</code> pair is live (maker fee 0%, taker 0.05%, minimum market order 1 USDT) &mdash; then withdraws the tokens to its own Sentinel wallet. Three signed HTTP calls, no SDK required. Auth is an <code>X-MEXC-APIKEY</code> header plus an HMAC-SHA256 signature of the query string.</p>
+
+      <div class="code-block">
+        <div class="bar">        <div class="label">MEXC Spot API v3 &mdash; market-buy P2P, withdraw to the agent's Sentinel wallet</div>
+        </div>
+        <pre><code><span class="kw">import</span> { <span class="fn">createHmac</span> } <span class="kw">from</span> <span class="str">'node:crypto'</span><span class="op">;</span>
+
+<span class="kw">const</span> KEY <span class="op">=</span> process<span class="op">.</span>env<span class="op">.</span>MEXC_API_KEY<span class="op">;</span>      <span class="cm">// dashboard key with Spot Trade + Withdraw scopes</span>
+<span class="kw">const</span> SECRET <span class="op">=</span> process<span class="op">.</span>env<span class="op">.</span>MEXC_API_SECRET<span class="op">;</span>
+
+<span class="kw">async function</span> <span class="fn">mexc</span>(method<span class="op">,</span> path<span class="op">,</span> params <span class="op">=</span> {}) {
+  <span class="kw">const</span> qs <span class="op">=</span> <span class="kw">new</span> <span class="fn">URLSearchParams</span>({ <span class="op">...</span>params<span class="op">,</span> <span class="prop">timestamp</span><span class="op">:</span> Date<span class="op">.</span><span class="fn">now</span>() })<span class="op">.</span><span class="fn">toString</span>()<span class="op">;</span>
+  <span class="kw">const</span> sig <span class="op">=</span> <span class="fn">createHmac</span>(<span class="str">'sha256'</span><span class="op">,</span> SECRET)<span class="op">.</span><span class="fn">update</span>(qs)<span class="op">.</span><span class="fn">digest</span>(<span class="str">'hex'</span>)<span class="op">;</span>
+  <span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`https://api.mexc.com${path}?${qs}&amp;signature=${sig}`</span><span class="op">,</span> {
+    method<span class="op">,</span> <span class="prop">headers</span><span class="op">:</span> { <span class="str">'X-MEXC-APIKEY'</span><span class="op">:</span> KEY }<span class="op">,</span>
+  })<span class="op">;</span>
+  <span class="kw">return</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
+}
+
+<span class="cm">// 1. Market-buy P2P with USDT &mdash; spend exactly 10 USDT (min 1, max 100k per order)</span>
+<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'POST'</span><span class="op">,</span> <span class="str">'/api/v3/order'</span><span class="op">,</span> {
+  <span class="prop">symbol</span><span class="op">:</span> <span class="str">'P2PUSDT'</span><span class="op">,</span> <span class="prop">side</span><span class="op">:</span> <span class="str">'BUY'</span><span class="op">,</span> <span class="prop">type</span><span class="op">:</span> <span class="str">'MARKET'</span><span class="op">,</span> <span class="prop">quoteOrderQty</span><span class="op">:</span> <span class="str">'10'</span><span class="op">,</span>
+})<span class="op">;</span>
+
+<span class="cm">// 2. Read the filled P2P balance</span>
+<span class="kw">const</span> { balances } <span class="op">=</span> <span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'GET'</span><span class="op">,</span> <span class="str">'/api/v3/account'</span>)<span class="op">;</span>
+<span class="kw">const</span> amount <span class="op">=</span> balances<span class="op">.</span><span class="fn">find</span>(b <span class="op">=&gt;</span> b<span class="op">.</span>asset <span class="op">===</span> <span class="str">'P2P'</span>)<span class="op">.</span>free<span class="op">;</span>
+
+<span class="cm">// 3. Withdraw to the agent's own Sentinel wallet (wallet.address = 'sent1...')</span>
+<span class="kw">const</span> { networkList } <span class="op">=</span> (<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'GET'</span><span class="op">,</span> <span class="str">'/api/v3/capital/config/getall'</span>))
+  <span class="op">.</span><span class="fn">find</span>(c <span class="op">=&gt;</span> c<span class="op">.</span>coin <span class="op">===</span> <span class="str">'P2P'</span>)<span class="op">;</span>
+<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'POST'</span><span class="op">,</span> <span class="str">'/api/v3/capital/withdraw'</span><span class="op">,</span> {
+  <span class="prop">coin</span><span class="op">:</span> <span class="str">'P2P'</span><span class="op">,</span> <span class="prop">netWork</span><span class="op">:</span> networkList[<span class="num">0</span>]<span class="op">.</span>netWork<span class="op">,</span>
+  <span class="prop">address</span><span class="op">:</span> wallet<span class="op">.</span>address<span class="op">,</span> amount<span class="op">,</span>
+})<span class="op">;</span>
+
+<span class="cm">// P2P lands on-chain in the agent's wallet &mdash; gas + direct node payments covered.</span>
+<span class="cm">// At ~$0.00008/P2P, 10 USDT buys ~125,000 P2P: years of gas, weeks of bandwidth.</span></code></pre>
+      </div>
+
+      <p class="desc" style="font-size: 13px; margin-top: 14px; margin-bottom: 0;">One-time human setup: create the MEXC API key with <em>Spot Trade</em> + <em>Withdraw</em> permissions and allowlist the agent's <code>sent1...</code> withdrawal address. From then on the agent is self-funding &mdash; it can top up its own P2P whenever the balance runs low.</p>
     </div>
 
     <div class="current-note">
