@@ -115,12 +115,13 @@
 
   --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-sm: 5px;
 
-  --shadow-glow: 0 0 0 1px rgba(0, 255, 102, 0.18), 0 0 32px -8px rgba(0, 255, 102, 0.35);
-  --shadow-card: 0 1px 0 rgba(0, 255, 102, 0.06) inset, 0 24px 60px -30px rgba(0, 0, 0, 0.9);
+  --shadow-glow: 0 0 0 1px rgba(0, 255, 102, 0.16), 0 0 28px -10px rgba(0, 255, 102, 0.3);
+  --shadow-card: 0 1px 0 rgba(0, 255, 102, 0.05) inset, 0 20px 50px -28px rgba(0, 0, 0, 0.85);
+  --hairline: linear-gradient(90deg, transparent, rgba(0, 255, 102, 0.55), transparent);
 }
 
 html { scroll-behavior: smooth; }
@@ -151,7 +152,7 @@ body::after {
     transparent 3px
   );
   mix-blend-mode: overlay;
-  opacity: 0.45;
+  opacity: 0.22;
 }
 
 /* Faint vignette pulling the eye toward the center column */
@@ -168,6 +169,22 @@ body::before {
 
 ::selection { background: var(--accent); color: #001a08; }
 
+/* Sleek scrollbars + crisp keyboard focus */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 102, 0.14);
+  border-radius: 5px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 255, 102, 0.3); }
+
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
 a { color: var(--accent); text-decoration: none; transition: color 0.18s, text-shadow 0.18s; }
 a:hover { color: var(--accent-bright); text-shadow: 0 0 12px rgba(0, 255, 102, 0.45); }
 
@@ -179,7 +196,7 @@ a:hover { color: var(--accent-bright); text-shadow: 0 0 12px rgba(0, 255, 102, 0
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.28;
+  opacity: 0.16;
 }
 
 /* ─── Layout ─── */
@@ -190,11 +207,21 @@ nav {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(2, 6, 10, 0.72);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  background: rgba(2, 6, 10, 0.82);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
   border-bottom: 1px solid var(--border);
   padding: 0 24px;
+}
+
+nav::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: var(--hairline);
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 nav .inner {
@@ -203,7 +230,7 @@ nav .inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 60px;
+  height: 56px;
 }
 
 nav .logo {
@@ -358,7 +385,17 @@ nav .links a::before {
   margin-right: 2px;
 }
 
-nav .links a:hover { color: var(--accent-bright); }
+nav .links a::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 100%; bottom: -6px;
+  height: 1px;
+  background: var(--accent);
+  transition: right 0.22s ease;
+}
+
+nav .links a:hover { color: var(--accent-bright); text-shadow: none; }
+nav .links a:hover::after { right: 0; }
 
 @keyframes blink {
   0%, 49% { opacity: 1; }
@@ -367,9 +404,23 @@ nav .links a:hover { color: var(--accent-bright); }
 
 /* ─── Hero ─── */
 .hero {
-  padding: 104px 0 88px;
+  padding: 116px 0 92px;
   text-align: center;
   position: relative;
+}
+
+/* Crisp blueprint grid fading out behind the hero */
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 14%;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(0, 255, 102, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 102, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 0%, #000 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 0%, #000 25%, transparent 78%);
 }
 
 .hero .protocol-badge {
@@ -380,14 +431,14 @@ nav .links a:hover { color: var(--accent-bright); }
   border-radius: 100px;
   border: 1px solid var(--border-bright);
   background: var(--accent-subtle);
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 600;
   font-family: var(--font-mono);
   color: var(--accent-bright);
-  letter-spacing: 1px;
-  margin-bottom: 28px;
+  letter-spacing: 1.6px;
+  margin-bottom: 30px;
   text-transform: uppercase;
-  box-shadow: 0 0 18px -4px var(--accent-glow);
+  box-shadow: 0 0 16px -6px var(--accent-glow);
 }
 
 .hero .protocol-badge::before {
@@ -406,19 +457,18 @@ nav .links a:hover { color: var(--accent-bright); }
 
 .hero h1 {
   font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-  font-size: clamp(38px, 5.4vw, 58px);
+  font-size: clamp(40px, 6vw, 66px);
   font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -1.6px;
-  margin-bottom: 22px;
+  line-height: 1.02;
+  letter-spacing: -2.4px;
+  margin-bottom: 24px;
   color: var(--text-bright);
+  text-wrap: balance;
 }
 
 .hero h1 .highlight {
   color: var(--accent);
-  text-shadow:
-    0 0 14px rgba(0, 255, 102, 0.55),
-    0 0 36px rgba(0, 255, 102, 0.35);
+  text-shadow: 0 0 22px rgba(0, 255, 102, 0.4);
   position: relative;
 }
 
@@ -471,7 +521,7 @@ nav .links a:hover { color: var(--accent-bright); }
   overflow: hidden;
   font-family: var(--font-mono);
   font-size: 13px;
-  line-height: 1.8;
+  line-height: 1.7;
   box-shadow: var(--shadow-card);
   position: relative;
 }
@@ -489,10 +539,22 @@ nav .links a:hover { color: var(--accent-bright); }
 .code-block .bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
+  gap: 14px;
+  padding: 9px 16px;
   border-bottom: 1px solid var(--border);
-  background: rgba(0, 255, 102, 0.025);
+  background: linear-gradient(180deg, rgba(0, 255, 102, 0.05), rgba(0, 255, 102, 0.015));
+}
+
+/* terminal traffic-light dots, phosphor edition */
+.code-block .bar::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(0, 255, 102, 0.55);
+  box-shadow: 14px 0 0 rgba(0, 255, 102, 0.3), 28px 0 0 rgba(0, 255, 102, 0.15);
+  margin-right: 28px;
 }
 
 .code-block .bar .label {
@@ -508,6 +570,9 @@ nav .links a:hover { color: var(--accent-bright); }
   overflow-x: auto;
 }
 
+.code-block pre::-webkit-scrollbar { height: 8px; }
+.code-block pre::-webkit-scrollbar-thumb { background: rgba(0, 255, 102, 0.18); border-radius: 4px; }
+
 /* Matrix-tuned syntax tokens — every hue pulled toward green/cyan/amber so
    the page never breaks its monochromatic phosphor mood. */
 .code-block code { color: var(--text); }
@@ -520,7 +585,7 @@ nav .links a:hover { color: var(--accent-bright); }
 .code-block .op   { color: #5bff9a; }
 
 /* ─── Sections ─── */
-section { padding: 80px 0; position: relative; }
+section { padding: 84px 0; position: relative; scroll-margin-top: 64px; }
 
 section .section-label {
   font-family: var(--font-mono);
@@ -543,11 +608,12 @@ section .section-label::before {
 
 section h2 {
   font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-  font-size: 30px;
+  font-size: clamp(26px, 3.6vw, 34px);
   font-weight: 700;
-  letter-spacing: -0.6px;
+  letter-spacing: -1.1px;
   color: var(--text-bright);
   margin-bottom: 16px;
+  text-wrap: balance;
 }
 
 section .desc {
@@ -613,7 +679,7 @@ footer p code {
   color: var(--accent);
   letter-spacing: -2px;
   margin-bottom: 4px;
-  text-shadow: 0 0 18px rgba(0, 255, 102, 0.35);
+  text-shadow: 0 0 14px rgba(0, 255, 102, 0.25);
 }
 
 .pricing-card .price span {
@@ -693,7 +759,7 @@ footer p code {
 
 .flow-step {
   display: grid;
-  grid-template-columns: 56px 1fr;
+  grid-template-columns: 48px 1fr;
   gap: 22px;
   padding: 24px 0;
   position: relative;
@@ -702,17 +768,17 @@ footer p code {
 .flow-step:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: 27px;
-  top: 72px;
+  left: 23px;
+  top: 64px;
   bottom: 0;
   width: 1px;
   background: linear-gradient(to bottom, var(--accent), var(--border));
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 .flow-step .step-num {
-  width: 56px; height: 56px;
-  border-radius: 12px;
+  width: 48px; height: 48px;
+  border-radius: 10px;
   border: 1px solid var(--border-bright);
   background: var(--bg-raised);
   display: flex;
@@ -720,13 +786,13 @@ footer p code {
   justify-content: center;
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 18px;
+  font-size: 16px;
   color: var(--accent);
   flex-shrink: 0;
   position: relative;
   z-index: 1;
-  box-shadow: 0 0 24px -8px var(--accent-glow), inset 0 0 0 1px rgba(0, 255, 102, 0.05);
-  text-shadow: 0 0 10px rgba(0, 255, 102, 0.55);
+  box-shadow: 0 0 18px -8px var(--accent-glow), inset 0 0 0 1px rgba(0, 255, 102, 0.05);
+  text-shadow: 0 0 8px rgba(0, 255, 102, 0.4);
 }
 
 .flow-step .step-content h4 {
@@ -779,7 +845,7 @@ footer p code {
 .security-item:hover {
   border-color: var(--border-bright);
   box-shadow: 0 0 28px -10px var(--accent-glow);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 
 .security-item h4 {
@@ -813,13 +879,37 @@ footer p code {
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   background: var(--bg-card);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  position: relative;
 }
 
 .chain-card:hover {
   border-color: var(--border-bright);
   box-shadow: 0 0 28px -10px var(--accent-glow);
+  transform: translateY(-2px);
 }
+
+/* Unified gradient hairline that lights up across every card family */
+.security-item::before,
+.chain-card::before,
+.path-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: var(--hairline);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.security-item:hover::before,
+.chain-card:hover::before,
+.path-card:hover::before { opacity: 0.7; }
+
+.path-card.active::before { opacity: 0.5; }
 
 .chain-card .chain-name {
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -879,7 +969,7 @@ footer p code {
   font-size: 14px;
   color: var(--accent);
   word-break: break-all;
-  text-shadow: 0 0 10px rgba(0, 255, 102, 0.35);
+  text-shadow: 0 0 8px rgba(0, 255, 102, 0.22);
 }
 
 .contract-box .copy-btn {
@@ -1072,6 +1162,7 @@ footer a:hover { color: var(--accent); }
   padding: 18px 22px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
   background: var(--accent-subtle);
   font-family: var(--font-mono);
   font-size: 12.5px;
@@ -1080,6 +1171,55 @@ footer a:hover { color: var(--accent); }
 }
 
 .current-note strong { color: var(--accent); }
+
+/* ─── MEXC banner (autonomous-path on-ramp) ─── */
+.mexc-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 15px 20px;
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(0, 255, 102, 0.07), rgba(0, 255, 102, 0.02));
+  text-decoration: none;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.mexc-banner:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 28px -10px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.mexc-banner:hover * { text-shadow: none; }
+
+.mexc-banner img { flex-shrink: 0; border-radius: 8px; }
+
+.mexc-banner .mexc-text { display: flex; flex-direction: column; gap: 3px; }
+
+.mexc-banner .mexc-title {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--text-bright);
+  letter-spacing: 0.3px;
+}
+
+.mexc-banner .mexc-sub {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mexc-banner .mexc-arrow {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 20px;
+  transition: transform 0.2s;
+}
+
+.mexc-banner:hover .mexc-arrow { transform: translateX(4px); }
 
 /* ─── Inline section h3 (used inside Integration code blocks) ─── */
 section h3 {
@@ -1140,6 +1280,7 @@ section h3 {
     <div class="links">
       <a href="#pricing">pricing</a>
       <a href="#flow">how-it-works</a>
+      <a href="#autonomous">autonomous</a>
       <a href="#code">integration</a>
       <a href="#security">security</a>
       <a href="https://github.com/Sentinel-Autonomybuilder/x402" target="_blank">github</a>
@@ -1156,7 +1297,7 @@ section h3 {
       Live on Base Mainnet &middot; Sentinel dVPN
     </div>
     <h1 class="fade-in">Private internet<br>for <span class="highlight">AI agents</span><span class="caret"></span></h1>
-    <p class="subtitle fade-in">AI agents pay USDC on Base for private VPN access through Sentinel's decentralized node network. Two paths: go fully autonomous, or let us manage everything. No KYC. No accounts. Everything on-chain.</p>
+    <p class="subtitle fade-in">AI agents pay USDC on Base over HTTP 402 and get private VPN access through Sentinel's decentralized node network. One request, one signature, connected. No KYC. No accounts. Everything on-chain.</p>
 
     <div class="os-row fade-in" aria-label="Operating system support">
       <div class="os-chip live" title="Verified on Windows">
@@ -1184,14 +1325,13 @@ section h3 {
     <div class="code-preview fade-in">
       <div class="code-block">
         <div class="bar">
-          <div class="label">Direct flow &mdash; agent manages its own P2P and gas</div>
+          <div class="label">x402 &mdash; one paid HTTP request buys 30 days of VPN</div>
         </div>
-        <pre><code><span class="kw">import</span> { <span class="fn">createWallet</span>, <span class="fn">connectDirect</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk'</span><span class="op">;</span>
-
-<span class="cm">// Agent already holds P2P tokens (bought with USDC on Base)</span>
-<span class="kw">const</span> { wallet } <span class="op">=</span> <span class="kw">await</span> <span class="fn">createWallet</span>(process<span class="op">.</span>env<span class="op">.</span>SENTINEL_MNEMONIC)<span class="op">;</span>
-<span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connectDirect</span>({ wallet<span class="op">,</span> <span class="prop">country</span><span class="op">:</span> <span class="str">'US'</span> })<span class="op">;</span>
-<span class="cm">// Agent pays node directly &mdash; full autonomy, no middleman</span></code></pre>
+        <pre><code><span class="cm">// HTTP 402 &rarr; auto-sign USDC on Base &rarr; provisioned on Sentinel</span>
+<span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">paidFetch</span>(<span class="str">'https://x402.sentinel.co/vpn/connect/30days'</span><span class="op">,</span> {
+  <span class="prop">method</span><span class="op">:</span> <span class="str">'POST'</span><span class="op">,</span> <span class="prop">body</span><span class="op">:</span> JSON<span class="op">.</span><span class="fn">stringify</span>({ <span class="prop">sentinelAddr</span><span class="op">:</span> wallet<span class="op">.</span>address })<span class="op">,</span>
+})<span class="op">;</span>
+<span class="cm">// $1.00 USDC &mdash; subscription + fee grant. Zero gas on Sentinel.</span></code></pre>
       </div>
     </div>
   </div>
@@ -1204,7 +1344,7 @@ section h3 {
   <div class="container">
     <div class="section-label">Pricing</div>
     <h2>Pay per day. No subscriptions.</h2>
-    <p class="desc">Pricing for the Managed Plan flow. Agents pay upfront for exactly the days they need. USDC on Base, settled automatically by the x402 protocol. For the Direct flow, agents buy P2P tokens and pay nodes at their posted rates.</p>
+    <p class="desc">Pricing for the x402 Managed Plan. Agents pay upfront for exactly the days they need. USDC on Base, settled automatically by the x402 protocol. On the separate Autonomous path, agents hold P2P and pay nodes at their posted per-GB / per-hour rates.</p>
 
     <div class="pricing-card">
       <div class="left">
@@ -1240,32 +1380,12 @@ section h3 {
   <div class="container">
     <div class="section-label">Two Paths</div>
     <h2>Choose your level of autonomy</h2>
-    <p class="desc">An AI agent can go fully autonomous (manage its own P2P tokens and gas) or let our x402 server handle everything (managed plan, zero gas, one command).</p>
+    <p class="desc">The x402 path is the focus of this site: one paid HTTP request and the agent is provisioned &mdash; zero gas, zero P2P tokens. Separately, a fully autonomous agent can skip x402 entirely and pay nodes directly at their per-gigabyte or per-hour rates. Two distinct paths, same network.</p>
 
     <div class="paths-grid">
       <div class="path-card active">
         <span class="path-badge live">Live Now</span>
-        <h3>Direct &mdash; Agent pays nodes</h3>
-        <p class="path-desc">Agent holds P2P tokens, manages its own gas, and pays Sentinel nodes directly. Full autonomy. No intermediary in the payment or the tunnel.</p>
-        <ul class="path-steps">
-          <li>Agent buys P2P automatically (MEXC spot API &mdash; see below)</li>
-          <li>Agent creates Sentinel wallet, holds own keys</li>
-          <li>Agent queries nodes, picks by country/speed</li>
-          <li>Agent starts session, pays node in P2P directly</li>
-          <li>Handshakes with VPN node (WireGuard/V2Ray)</li>
-          <li>Full control &mdash; no middleman, no plan needed</li>
-        </ul>
-        <div class="path-traits">
-          <div class="path-trait"><span class="label">Gas</span><span class="val">Agent pays (~0.01 P2P/tx)</span></div>
-          <div class="path-trait"><span class="label">Node choice</span><span class="val">Any Sentinel node</span></div>
-          <div class="path-trait"><span class="label">Trust</span><span class="val">Zero &mdash; agent controls everything</span></div>
-          <div class="path-trait"><span class="label">Best for</span><span class="val">Autonomous agents</span></div>
-        </div>
-      </div>
-
-      <div class="path-card active">
-        <span class="path-badge live">Live Now</span>
-        <h3>Managed Plan &mdash; x402 handles it</h3>
+        <h3>x402 Managed Plan &mdash; one paid request</h3>
         <p class="path-desc">Agent pays USDC via HTTP 402 &mdash; live at <code>x402.sentinel.co</code>, from $0.033 for a day to $1.00 for 30 days. We add the agent to our subscription plan, grant gas allowance, and the agent connects with one command. Zero gas on Sentinel.</p>
         <ul class="path-steps">
           <li>Agent sends <code>POST /vpn/connect/30days</code></li>
@@ -1282,80 +1402,42 @@ section h3 {
           <div class="path-trait"><span class="label">Best for</span><span class="val">Quick integration</span></div>
         </div>
       </div>
-    </div>
 
-    <!-- ─── Step Zero (Direct path): agent buys P2P from MEXC via API ─── -->
-    <div style="margin-top: 56px;">
-      <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 10px; letter-spacing: 1.5px; text-transform: uppercase;">
-        Step zero &mdash; agent buys P2P on MEXC, fully by API
-      </h3>
-      <p class="desc" style="margin-bottom: 18px;">No human, no UI. The agent market-buys P2P with USDT on MEXC spot &mdash; the <code>P2PUSDT</code> pair is live (maker fee 0%, taker 0.05%, minimum market order 1 USDT) &mdash; then withdraws the tokens to its own Sentinel wallet. Three signed HTTP calls, no SDK required. Auth is an <code>X-MEXC-APIKEY</code> header plus an HMAC-SHA256 signature of the query string.</p>
-
-      <!-- MEXC banner — click through to the live P2P/USDT market -->
-      <a href="https://www.mexc.com/exchange/P2P_USDT" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 16px; margin-bottom: 22px; padding: 16px 22px; border: 1px solid rgba(43, 108, 255, 0.5); border-radius: 10px; background: linear-gradient(135deg, rgba(43, 108, 255, 0.14), rgba(43, 108, 255, 0.05)); text-decoration: none;" onmouseover="this.style.borderColor='rgba(43,108,255,0.9)'" onmouseout="this.style.borderColor='rgba(43,108,255,0.5)'">
-        <img src="data:image/png;base64,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g6fEKVCveBvyll9zqs3vZhkXIdij5decavMbhlkAJlm8Cus5DBckUQB2RsocSm96actnGC5+7EiEYF8FYPlUw99rVh0UQHR1v4rMppe2vL1mNWBaugmJU6A/BNqQ0mh34E7enhwR8b/STUicAvmZASyG31WeNsvslB9wyheApfXybjZ7zak2T5tlBE6fyxeAl/+QbV5zqq2Gmep+E4kBR+Y6QMAnkXbK2e41p9rSkuhUuRfdCGUZmQKo/b71GkfUGvu8rJFoRKYA0upErTds2V76vE3q81S5F22J7bOQvBXiWLCtfGoeSSN+1u5CK4K/uVwBnIVphQfTuMrRf+63MEZ9CxAnkqttsjfDpSwwFW2zvRlCpSPoooAj1JO/priUPVOQLYCUBY5E22zvTRXr/vdJ36GOmTfgSPo2c/nboc9CU8Gp0Al+DX6uqKbvYvsWiYA3GltMg3SD3wziCNHg4xLT7c4H2t0o4kU8h82ndJzg1/CAXpEEAGdhaOKpCosiJrjAT9rdKOYSP8Ha0+QCTrUOfkB7R9hZGMLK1BzQ4AsOTG11zG0cZrjEAWDk/qyA0+tjQLELFgzisfK7A9SmYDXav3k65z9Wa/9bN6wYxD4ifoHsOwRmiDi6Xi9/eAZxeF0EPcFWpwg4MvFMJWifAi1Kq0MHkDslOsElnjzYgx9It0sEHAhmsRNc4pmVgx+wNAMsSg/UPS60SjTCLk7wPtgKg9rK/ebpkS0B7yxeV7FZAHPpP6UP4CVih+W7gAbAJ1zgneuQm8P8N0+PtG//bM6ABgEf8SdGln9z2wWwaBB7uMI+AvoIeIqIPaRz18WHJ80QMEPABFf4AwETXGBs+T/ANP7mRERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERES05i+Vhd12LSf8ZQAAAABJRU5ErkJggg==" alt="MEXC logo" width="38" height="38" style="flex-shrink: 0; border-radius: 8px;">
-        <span style="display: flex; flex-direction: column; gap: 3px;">
-          <span style="color: #e8f1ff; font-weight: 700; font-size: 15px; letter-spacing: 0.3px;">Buy P2P on MEXC</span>
-          <span style="color: #7da3e8; font-size: 12.5px;">Live spot market &middot; P2P/USDT &middot; mexc.com/exchange/P2P_USDT</span>
-        </span>
-        <span style="margin-left: auto; color: #2b6cff; font-size: 20px;">&rarr;</span>
-      </a>
-
-      <div class="code-block">
-        <div class="bar">        <div class="label">MEXC Spot API v3 &mdash; market-buy P2P, withdraw to the agent's Sentinel wallet</div>
+      <div class="path-card active">
+        <span class="path-badge live">Live Now</span>
+        <h3>Autonomous &mdash; agent pays nodes directly</h3>
+        <p class="path-desc">A separate path that never touches the x402 server. Agent holds P2P tokens, manages its own gas, and pays Sentinel nodes directly at their posted per-GB or per-hour rates. Full autonomy. No intermediary in the payment or the tunnel.</p>
+        <ul class="path-steps">
+          <li>Agent funds itself with P2P (see <a href="#autonomous">Autonomous Path</a> below)</li>
+          <li>Agent creates Sentinel wallet, holds own keys</li>
+          <li>Agent queries nodes, picks by country/speed/price</li>
+          <li>Agent starts session, pays node in P2P per GB or per hour</li>
+          <li>Handshakes with VPN node (WireGuard/V2Ray)</li>
+          <li>Full control &mdash; no middleman, no plan needed</li>
+        </ul>
+        <div class="path-traits">
+          <div class="path-trait"><span class="label">Gas</span><span class="val">Agent pays (~0.01 P2P/tx)</span></div>
+          <div class="path-trait"><span class="label">Node choice</span><span class="val">Any Sentinel node</span></div>
+          <div class="path-trait"><span class="label">Pricing</span><span class="val">Node's posted rate (per GB / per hour)</span></div>
+          <div class="path-trait"><span class="label">Trust</span><span class="val">Zero &mdash; agent controls everything</span></div>
         </div>
-        <pre><code><span class="kw">import</span> { <span class="fn">createHmac</span> } <span class="kw">from</span> <span class="str">'node:crypto'</span><span class="op">;</span>
-
-<span class="kw">const</span> KEY <span class="op">=</span> process<span class="op">.</span>env<span class="op">.</span>MEXC_API_KEY<span class="op">;</span>      <span class="cm">// dashboard key with Spot Trade + Withdraw scopes</span>
-<span class="kw">const</span> SECRET <span class="op">=</span> process<span class="op">.</span>env<span class="op">.</span>MEXC_API_SECRET<span class="op">;</span>
-
-<span class="kw">async function</span> <span class="fn">mexc</span>(method<span class="op">,</span> path<span class="op">,</span> params <span class="op">=</span> {}) {
-  <span class="kw">const</span> qs <span class="op">=</span> <span class="kw">new</span> <span class="fn">URLSearchParams</span>({ <span class="op">...</span>params<span class="op">,</span> <span class="prop">timestamp</span><span class="op">:</span> Date<span class="op">.</span><span class="fn">now</span>() })<span class="op">.</span><span class="fn">toString</span>()<span class="op">;</span>
-  <span class="kw">const</span> sig <span class="op">=</span> <span class="fn">createHmac</span>(<span class="str">'sha256'</span><span class="op">,</span> SECRET)<span class="op">.</span><span class="fn">update</span>(qs)<span class="op">.</span><span class="fn">digest</span>(<span class="str">'hex'</span>)<span class="op">;</span>
-  <span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`https://api.mexc.com${path}?${qs}&amp;signature=${sig}`</span><span class="op">,</span> {
-    method<span class="op">,</span> <span class="prop">headers</span><span class="op">:</span> { <span class="str">'X-MEXC-APIKEY'</span><span class="op">:</span> KEY }<span class="op">,</span>
-  })<span class="op">;</span>
-  <span class="kw">return</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
-}
-
-<span class="cm">// 1. Market-buy P2P with USDT &mdash; spend exactly 10 USDT (min 1, max 100k per order)</span>
-<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'POST'</span><span class="op">,</span> <span class="str">'/api/v3/order'</span><span class="op">,</span> {
-  <span class="prop">symbol</span><span class="op">:</span> <span class="str">'P2PUSDT'</span><span class="op">,</span> <span class="prop">side</span><span class="op">:</span> <span class="str">'BUY'</span><span class="op">,</span> <span class="prop">type</span><span class="op">:</span> <span class="str">'MARKET'</span><span class="op">,</span> <span class="prop">quoteOrderQty</span><span class="op">:</span> <span class="str">'10'</span><span class="op">,</span>
-})<span class="op">;</span>
-
-<span class="cm">// 2. Read the filled P2P balance</span>
-<span class="kw">const</span> { balances } <span class="op">=</span> <span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'GET'</span><span class="op">,</span> <span class="str">'/api/v3/account'</span>)<span class="op">;</span>
-<span class="kw">const</span> amount <span class="op">=</span> balances<span class="op">.</span><span class="fn">find</span>(b <span class="op">=&gt;</span> b<span class="op">.</span>asset <span class="op">===</span> <span class="str">'P2P'</span>)<span class="op">.</span>free<span class="op">;</span>
-
-<span class="cm">// 3. Withdraw to the agent's own Sentinel wallet (wallet.address = 'sent1...')</span>
-<span class="kw">const</span> { networkList } <span class="op">=</span> (<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'GET'</span><span class="op">,</span> <span class="str">'/api/v3/capital/config/getall'</span>))
-  <span class="op">.</span><span class="fn">find</span>(c <span class="op">=&gt;</span> c<span class="op">.</span>coin <span class="op">===</span> <span class="str">'P2P'</span>)<span class="op">;</span>
-<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'POST'</span><span class="op">,</span> <span class="str">'/api/v3/capital/withdraw'</span><span class="op">,</span> {
-  <span class="prop">coin</span><span class="op">:</span> <span class="str">'P2P'</span><span class="op">,</span> <span class="prop">netWork</span><span class="op">:</span> networkList[<span class="num">0</span>]<span class="op">.</span>netWork<span class="op">,</span>
-  <span class="prop">address</span><span class="op">:</span> wallet<span class="op">.</span>address<span class="op">,</span> amount<span class="op">,</span>
-})<span class="op">;</span>
-
-<span class="cm">// P2P lands on-chain in the agent's wallet &mdash; gas + direct node payments covered.</span>
-<span class="cm">// At ~$0.00008/P2P, 10 USDT buys ~125,000 P2P: years of gas, weeks of bandwidth.</span></code></pre>
       </div>
-
-      <p class="desc" style="font-size: 13px; margin-top: 14px; margin-bottom: 0;">One-time human setup: create the MEXC API key with <em>Spot Trade</em> + <em>Withdraw</em> permissions and allowlist the agent's <code>sent1...</code> withdrawal address. From then on the agent is self-funding &mdash; it can top up its own P2P whenever the balance runs low.</p>
     </div>
 
     <div class="current-note">
-      <strong>Current status:</strong> Both flows are live. The Direct flow handles USDC-to-P2P conversion and the agent managing its own Sentinel sessions.
-      The Managed Plan flow (x402 HTTP 402 server with automatic subscription provisioning) is the primary integration path &mdash; running now at <code>https://x402.sentinel.co</code> with 726 active nodes in the plan and pricing from $0.033 (1 day) to $1.00 (30 days).
-      Both flows use the same Sentinel network and the same WireGuard/V2Ray tunnels. The only difference is who manages the gas and the subscription.
+      <strong>Current status:</strong> Both paths are live. The x402 Managed Plan is the primary integration path &mdash; running now at <code>https://x402.sentinel.co</code> with 726 active nodes in the plan and pricing from $0.033 (1 day) to $1.00 (30 days).
+      The Autonomous path is fully separate: the agent holds its own P2P and pays nodes directly at per-GB / per-hour rates &mdash; it never touches the x402 server.
+      Both paths use the same Sentinel network and the same WireGuard/V2Ray tunnels.
     </div>
   </div>
 </section>
 
 <div class="divider"></div>
 
-<!-- ─── Managed Plan Flow Detail ─── -->
+<!-- ─── Managed Plan Flow Detail (x402 — the primary path) ─── -->
 <section id="managed-flow">
   <div class="container">
-    <div class="section-label">Managed Plan Flow</div>
+    <div class="section-label">The x402 Path</div>
     <h2>How x402 subscription works</h2>
     <p class="desc">Live at <code>https://x402.sentinel.co</code>. Agent sends one HTTP request. Payment, settlement, subscription provisioning, and fee granting all happen automatically.</p>
 
@@ -1401,72 +1483,131 @@ section h3 {
 
 <div class="divider"></div>
 
+<!-- ─── Autonomous Path (separate from x402 — agent pays nodes per GB / per hour) ─── -->
+<section id="autonomous">
+  <div class="container">
+    <div class="section-label">The Autonomous Path</div>
+    <h2>Fully autonomous &mdash; no x402 involved</h2>
+    <p class="desc">A separate path for agents that want zero intermediaries. The agent holds its own P2P tokens, pays Sentinel nodes directly at their posted per-gigabyte or per-hour rates, and manages its own gas. The x402 server plays no part in this flow.</p>
+
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-num">0</div>
+        <div class="step-content">
+          <h4>Agent funds itself with P2P</h4>
+          <p>The agent market-buys P2P with USDT on MEXC spot by API and withdraws the tokens to its own Sentinel wallet. No human, no UI &mdash; the full recipe is below.</p>
+          <span class="tag tag-chain">MEXC &middot; P2P</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Own wallet, own keys</h4>
+          <p>Agent creates a Sentinel wallet and holds the mnemonic itself. It pays its own gas (~0.01 P2P per transaction) from the P2P it bought in step zero.</p>
+          <span class="tag tag-agent">Agent</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Pick any node on the network</h4>
+          <p>Agent queries the live Sentinel node list and picks by country, speed, and price. Every node posts its own <strong>per-gigabyte</strong> and <strong>per-hour</strong> rates &mdash; the agent pays exactly that, no plan, no subscription tier.</p>
+          <span class="tag tag-agent">Agent &rarr; Chain</span>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Pay the node, handshake directly</h4>
+          <p>Agent starts the session and pays the node in P2P at its posted rate, then handshakes directly over WireGuard/V2Ray. No middleman in the payment or the tunnel &mdash; the x402 server is never contacted.</p>
+          <span class="tag tag-agent">Agent &harr; Node</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 48px;">
+      <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 10px; letter-spacing: 1.5px; text-transform: uppercase;">
+        Step zero in practice &mdash; agent buys P2P on MEXC, fully by API
+      </h3>
+      <p class="desc" style="margin-bottom: 18px;">No human, no UI. The agent market-buys P2P with USDT on MEXC spot &mdash; the <code>P2PUSDT</code> pair is live (maker fee 0%, taker 0.05%, minimum market order 1 USDT) &mdash; then withdraws the tokens to its own Sentinel wallet. Three signed HTTP calls, no SDK required. Auth is an <code>X-MEXC-APIKEY</code> header plus an HMAC-SHA256 signature of the query string.</p>
+
+      <!-- MEXC banner — click through to the live P2P/USDT market -->
+      <a href="https://www.mexc.com/exchange/P2P_USDT" target="_blank" rel="noopener" class="mexc-banner">
+        <img src="data:image/png;base64,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g6fEKVCveBvyll9zqs3vZhkXIdij5decavMbhlkAJlm8Cus5DBckUQB2RsocSm96actnGC5+7EiEYF8FYPlUw99rVh0UQHR1v4rMppe2vL1mNWBaugmJU6A/BNqQ0mh34E7enhwR8b/STUicAvmZASyG31WeNsvslB9wyheApfXybjZ7zak2T5tlBE6fyxeAl/+QbV5zqq2Gmep+E4kBR+Y6QMAnkXbK2e41p9rSkuhUuRfdCGUZmQKo/b71GkfUGvu8rJFoRKYA0upErTds2V76vE3q81S5F22J7bOQvBXiWLCtfGoeSSN+1u5CK4K/uVwBnIVphQfTuMrRf+63MEZ9CxAnkqttsjfDpSwwFW2zvRlCpSPoooAj1JO/priUPVOQLYCUBY5E22zvTRXr/vdJ36GOmTfgSPo2c/nboc9CU8Gp0Al+DX6uqKbvYvsWiYA3GltMg3SD3wziCNHg4xLT7c4H2t0o4kU8h82ndJzg1/CAXpEEAGdhaOKpCosiJrjAT9rdKOYSP8Ha0+QCTrUOfkB7R9hZGMLK1BzQ4AsOTG11zG0cZrjEAWDk/qyA0+tjQLELFgzisfK7A9SmYDXav3k65z9Wa/9bN6wYxD4ifoHsOwRmiDi6Xi9/eAZxeF0EPcFWpwg4MvFMJWifAi1Kq0MHkDslOsElnjzYgx9It0sEHAhmsRNc4pmVgx+wNAMsSg/UPS60SjTCLk7wPtgKg9rK/ebpkS0B7yxeV7FZAHPpP6UP4CVih+W7gAbAJ1zgneuQm8P8N0+PtG//bM6ABgEf8SdGln9z2wWwaBB7uMI+AvoIeIqIPaRz18WHJ80QMEPABFf4AwETXGBs+T/ANP7mRERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERES05i+Vhd12LSf8ZQAAAABJRU5ErkJggg==" alt="MEXC logo" width="38" height="38">
+        <span class="mexc-text">
+          <span class="mexc-title">Buy P2P on MEXC</span>
+          <span class="mexc-sub">Live spot market &middot; P2P/USDT &middot; mexc.com/exchange/P2P_USDT</span>
+        </span>
+        <span class="mexc-arrow">&rarr;</span>
+      </a>
+
+      <div class="code-block">
+        <div class="bar">        <div class="label">MEXC Spot API v3 &mdash; market-buy P2P, withdraw to the agent's Sentinel wallet</div>
+        </div>
+        <pre><code><span class="kw">import</span> { <span class="fn">createHmac</span> } <span class="kw">from</span> <span class="str">'node:crypto'</span><span class="op">;</span>
+
+<span class="kw">const</span> KEY <span class="op">=</span> process<span class="op">.</span>env<span class="op">.</span>MEXC_API_KEY<span class="op">;</span>      <span class="cm">// dashboard key with Spot Trade + Withdraw scopes</span>
+<span class="kw">const</span> SECRET <span class="op">=</span> process<span class="op">.</span>env<span class="op">.</span>MEXC_API_SECRET<span class="op">;</span>
+
+<span class="kw">async function</span> <span class="fn">mexc</span>(method<span class="op">,</span> path<span class="op">,</span> params <span class="op">=</span> {}) {
+  <span class="kw">const</span> qs <span class="op">=</span> <span class="kw">new</span> <span class="fn">URLSearchParams</span>({ <span class="op">...</span>params<span class="op">,</span> <span class="prop">timestamp</span><span class="op">:</span> Date<span class="op">.</span><span class="fn">now</span>() })<span class="op">.</span><span class="fn">toString</span>()<span class="op">;</span>
+  <span class="kw">const</span> sig <span class="op">=</span> <span class="fn">createHmac</span>(<span class="str">'sha256'</span><span class="op">,</span> SECRET)<span class="op">.</span><span class="fn">update</span>(qs)<span class="op">.</span><span class="fn">digest</span>(<span class="str">'hex'</span>)<span class="op">;</span>
+  <span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">`https://api.mexc.com${path}?${qs}&amp;signature=${sig}`</span><span class="op">,</span> {
+    method<span class="op">,</span> <span class="prop">headers</span><span class="op">:</span> { <span class="str">'X-MEXC-APIKEY'</span><span class="op">:</span> KEY }<span class="op">,</span>
+  })<span class="op">;</span>
+  <span class="kw">return</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
+}
+
+<span class="cm">// 1. Market-buy P2P with USDT &mdash; spend exactly 10 USDT (min 1, max 100k per order)</span>
+<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'POST'</span><span class="op">,</span> <span class="str">'/api/v3/order'</span><span class="op">,</span> {
+  <span class="prop">symbol</span><span class="op">:</span> <span class="str">'P2PUSDT'</span><span class="op">,</span> <span class="prop">side</span><span class="op">:</span> <span class="str">'BUY'</span><span class="op">,</span> <span class="prop">type</span><span class="op">:</span> <span class="str">'MARKET'</span><span class="op">,</span> <span class="prop">quoteOrderQty</span><span class="op">:</span> <span class="str">'10'</span><span class="op">,</span>
+})<span class="op">;</span>
+
+<span class="cm">// 2. Read the filled P2P balance</span>
+<span class="kw">const</span> { balances } <span class="op">=</span> <span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'GET'</span><span class="op">,</span> <span class="str">'/api/v3/account'</span>)<span class="op">;</span>
+<span class="kw">const</span> amount <span class="op">=</span> balances<span class="op">.</span><span class="fn">find</span>(b <span class="op">=&gt;</span> b<span class="op">.</span>asset <span class="op">===</span> <span class="str">'P2P'</span>)<span class="op">.</span>free<span class="op">;</span>
+
+<span class="cm">// 3. Withdraw to the agent's own Sentinel wallet (wallet.address = 'sent1...')</span>
+<span class="kw">const</span> { networkList } <span class="op">=</span> (<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'GET'</span><span class="op">,</span> <span class="str">'/api/v3/capital/config/getall'</span>))
+  <span class="op">.</span><span class="fn">find</span>(c <span class="op">=&gt;</span> c<span class="op">.</span>coin <span class="op">===</span> <span class="str">'P2P'</span>)<span class="op">;</span>
+<span class="kw">await</span> <span class="fn">mexc</span>(<span class="str">'POST'</span><span class="op">,</span> <span class="str">'/api/v3/capital/withdraw'</span><span class="op">,</span> {
+  <span class="prop">coin</span><span class="op">:</span> <span class="str">'P2P'</span><span class="op">,</span> <span class="prop">netWork</span><span class="op">:</span> networkList[<span class="num">0</span>]<span class="op">.</span>netWork<span class="op">,</span>
+  <span class="prop">address</span><span class="op">:</span> wallet<span class="op">.</span>address<span class="op">,</span> amount<span class="op">,</span>
+})<span class="op">;</span>
+
+<span class="cm">// P2P lands on-chain in the agent's wallet &mdash; gas + direct node payments covered.</span>
+<span class="cm">// At ~$0.00008/P2P, 10 USDT buys ~125,000 P2P: years of gas, weeks of bandwidth.</span></code></pre>
+      </div>
+
+      <p class="desc" style="font-size: 13px; margin-top: 14px; margin-bottom: 0;">One-time human setup: create the MEXC API key with <em>Spot Trade</em> + <em>Withdraw</em> permissions and allowlist the agent's <code>sent1...</code> withdrawal address. From then on the agent is self-funding &mdash; it can top up its own P2P whenever the balance runs low.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
 <!-- ─── Code Examples ─── -->
 <section id="code">
   <div class="container">
     <div class="section-label">Integration</div>
     <h2>Two integration paths</h2>
-    <p class="desc">Go fully autonomous with <code>blue-js-sdk</code> or let the x402 server handle everything with <code>@x402/fetch</code> &mdash; both live now. Both give you private internet access through the same Sentinel network.</p>
+    <p class="desc">Let the x402 server handle everything with <code>@x402/fetch</code>, or go fully autonomous with <code>blue-js-sdk</code> &mdash; both live now. Both give you private internet access through the same Sentinel network.</p>
 
-    <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 18px; letter-spacing: 1.5px; text-transform: uppercase;">&#9679; Direct Flow &mdash; Live Now</h3>
-
-    <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">Install &mdash; Direct flow (agent manages P2P + gas)</div>
-      </div>
-      <pre><code><span class="fn">npm install</span> blue-js-sdk</code></pre>
-    </div>
+    <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 18px; letter-spacing: 1.5px; text-transform: uppercase;">&#9679; x402 Managed Plan Flow &mdash; Live Now</h3>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">Connect to VPN &mdash; agent pays node directly</div>
-      </div>
-      <pre><code><span class="kw">import</span> { <span class="fn">createWallet</span>, <span class="fn">connectDirect</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk'</span><span class="op">;</span>
-
-<span class="cm">// Agent already holds P2P tokens (purchased with USDC on Base)</span>
-<span class="kw">const</span> { wallet } <span class="op">=</span> <span class="kw">await</span> <span class="fn">createWallet</span>(process<span class="op">.</span>env<span class="op">.</span>SENTINEL_MNEMONIC)<span class="op">;</span>
-
-<span class="cm">// Pick any Sentinel node &mdash; pay directly in P2P, full autonomy</span>
-<span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connectDirect</span>({
-  wallet<span class="op">,</span>
-  <span class="prop">country</span><span class="op">:</span> <span class="str">'US'</span><span class="op">,</span>
-  <span class="prop">protocol</span><span class="op">:</span> <span class="str">'wireguard'</span><span class="op">,</span>
-})<span class="op">;</span>
-
-<span class="cm">// {</span>
-<span class="cm">//   connected: true,</span>
-<span class="cm">//   ip: '185.xxx.xxx.xxx',</span>
-<span class="cm">//   country: 'US',</span>
-<span class="cm">//   node: 'sentnode1...',</span>
-<span class="cm">//   sessionId: '12345678',</span>
-<span class="cm">//   protocol: 'wireguard'</span>
-<span class="cm">// }</span></code></pre>
-    </div>
-
-    <div class="code-block" style="margin-bottom: 48px;">
-      <div class="bar">        <div class="label">Direct flow &mdash; what the agent manages</div>
-      </div>
-      <pre><code><span class="cm">// The agent controls the full lifecycle:</span>
-<span class="cm">//</span>
-<span class="cm">// 1. Wallet: Agent creates &amp; holds Sentinel keys (mnemonic)</span>
-<span class="cm">// 2. Tokens: Agent holds P2P tokens (bought with USDC on Base)</span>
-<span class="cm">// 3. Gas: Agent pays Sentinel gas (~0.01 P2P per transaction)</span>
-<span class="cm">// 4. Node selection: Agent queries Sentinel nodes, picks by country/speed</span>
-<span class="cm">// 5. Session: Agent starts/ends sessions, pays node directly</span>
-<span class="cm">// 6. Tunnel: Agent handshakes directly with VPN node (WireGuard/V2Ray)</span>
-<span class="cm">//</span>
-<span class="cm">// Zero middlemen. Zero trust required. Full autonomy.</span>
-<span class="cm">// All of this ships in blue-js-sdk today.</span></code></pre>
-    </div>
-
-    <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 18px; letter-spacing: 1.5px; text-transform: uppercase;">&#9679; Managed Plan Flow &mdash; Live Now</h3>
-
-    <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">Install &mdash; Managed plan (x402 handles everything)</div>
+      <div class="bar">
+        <div class="label">Install &mdash; Managed plan (x402 handles everything)</div>
       </div>
       <pre><code><span class="fn">npm install</span> @x402/fetch @x402/evm blue-js-sdk viem</code></pre>
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">Step 0: Prerequisites &mdash; fund an EVM key with USDC on Base</div>
+      <div class="bar">
+        <div class="label">Step 0: Prerequisites &mdash; fund an EVM key with USDC on Base</div>
       </div>
       <pre><code><span class="cm">// You need ONE thing: an EVM private key with &gt;= $1.00 USDC on Base (chainId 8453).</span>
 <span class="cm">// No ETH needed &mdash; EIP-3009 is gasless from the agent side (facilitator pays Base gas).</span>
@@ -1484,7 +1625,8 @@ section h3 {
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">Step 1: Create Sentinel wallet + set up x402 payment client</div>
+      <div class="bar">
+        <div class="label">Step 1: Create Sentinel wallet + set up x402 payment client</div>
       </div>
       <pre><code><span class="kw">import</span> { <span class="fn">x402Client</span>, <span class="fn">wrapFetchWithPayment</span> } <span class="kw">from</span> <span class="str">'@x402/fetch'</span><span class="op">;</span>
 <span class="kw">import</span> { <span class="fn">ExactEvmScheme</span> } <span class="kw">from</span> <span class="str">'@x402/evm/exact/client'</span><span class="op">;</span>
@@ -1512,7 +1654,8 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">Step 2: Buy 30 days of VPN &mdash; Base mainnet</div>
+      <div class="bar">
+        <div class="label">Step 2: Buy 30 days of VPN &mdash; Base mainnet</div>
       </div>
       <pre><code><span class="cm">// Request VPN access &mdash; 402 &rarr; auto-sign &rarr; facilitator settles &rarr; provisioned</span>
 <span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">paidFetch</span>(<span class="str">'https://x402.sentinel.co/vpn/connect/30days'</span><span class="op">,</span> {
@@ -1535,7 +1678,8 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">Step 3: Connect to VPN &mdash; use provisioned credentials</div>
+      <div class="bar">
+        <div class="label">Step 3: Connect to VPN &mdash; use provisioned credentials</div>
       </div>
       <pre><code><span class="cm">// connect(), createWallet(), rpcQueryNodesForPlan(), createRpcQueryClientWithFallback()</span>
 <span class="cm">// already imported above from 'blue-js-sdk/ai-path'</span>
@@ -1567,7 +1711,8 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">Under the hood &mdash; what x402 does for you</div>
+      <div class="bar">
+        <div class="label">Under the hood &mdash; what x402 does for you</div>
       </div>
       <pre><code><span class="cm">// 1. Agent sends POST /vpn/connect/30days</span>
 <span class="cm">//    &rarr; Server returns HTTP 402 + PAYMENT-REQUIRED header</span>
@@ -1593,7 +1738,8 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">Error handling &mdash; fee grant pre-check errors</div>
+      <div class="bar">
+        <div class="label">Error handling &mdash; fee grant pre-check errors</div>
       </div>
       <pre><code><span class="kw">try</span> {
   <span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
@@ -1612,10 +1758,63 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 }</code></pre>
     </div>
 
+    <h3 style="font-size: 13px; color: var(--accent); margin-bottom: 18px; margin-top: 48px; letter-spacing: 1.5px; text-transform: uppercase;">&#9679; Autonomous Flow &mdash; Live Now</h3>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="label">Install &mdash; Autonomous flow (agent manages P2P + gas)</div>
+      </div>
+      <pre><code><span class="fn">npm install</span> blue-js-sdk</code></pre>
+    </div>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="label">Connect to VPN &mdash; agent pays node directly</div>
+      </div>
+      <pre><code><span class="kw">import</span> { <span class="fn">createWallet</span>, <span class="fn">connectDirect</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk'</span><span class="op">;</span>
+
+<span class="cm">// Agent already holds P2P tokens (bought on MEXC by API &mdash; see Autonomous Path above)</span>
+<span class="kw">const</span> { wallet } <span class="op">=</span> <span class="kw">await</span> <span class="fn">createWallet</span>(process<span class="op">.</span>env<span class="op">.</span>SENTINEL_MNEMONIC)<span class="op">;</span>
+
+<span class="cm">// Pick any Sentinel node &mdash; pay directly in P2P, full autonomy</span>
+<span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connectDirect</span>({
+  wallet<span class="op">,</span>
+  <span class="prop">country</span><span class="op">:</span> <span class="str">'US'</span><span class="op">,</span>
+  <span class="prop">protocol</span><span class="op">:</span> <span class="str">'wireguard'</span><span class="op">,</span>
+})<span class="op">;</span>
+
+<span class="cm">// {</span>
+<span class="cm">//   connected: true,</span>
+<span class="cm">//   ip: '185.xxx.xxx.xxx',</span>
+<span class="cm">//   country: 'US',</span>
+<span class="cm">//   node: 'sentnode1...',</span>
+<span class="cm">//   sessionId: '12345678',</span>
+<span class="cm">//   protocol: 'wireguard'</span>
+<span class="cm">// }</span></code></pre>
+    </div>
+
+    <div class="code-block" style="margin-bottom: 24px;">
+      <div class="bar">
+        <div class="label">Autonomous flow &mdash; what the agent manages</div>
+      </div>
+      <pre><code><span class="cm">// The agent controls the full lifecycle:</span>
+<span class="cm">//</span>
+<span class="cm">// 1. Wallet: Agent creates &amp; holds Sentinel keys (mnemonic)</span>
+<span class="cm">// 2. Tokens: Agent holds P2P tokens (bought on MEXC by API)</span>
+<span class="cm">// 3. Gas: Agent pays Sentinel gas (~0.01 P2P per transaction)</span>
+<span class="cm">// 4. Node selection: Agent queries Sentinel nodes, picks by country/speed/price</span>
+<span class="cm">// 5. Session: Agent starts/ends sessions, pays node at its per-GB / per-hour rate</span>
+<span class="cm">// 6. Tunnel: Agent handshakes directly with VPN node (WireGuard/V2Ray)</span>
+<span class="cm">//</span>
+<span class="cm">// Zero middlemen. Zero trust required. Full autonomy. No x402 involved.</span>
+<span class="cm">// All of this ships in blue-js-sdk today.</span></code></pre>
+    </div>
+
     <h3 style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px; margin-top: 48px; letter-spacing: 1.5px; text-transform: uppercase;">Both Flows</h3>
 
     <div class="code-block">
-      <div class="bar">        <div class="label">Check pricing (free, no payment)</div>
+      <div class="bar">
+        <div class="label">Check pricing (free, no payment)</div>
       </div>
       <pre><code><span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://x402.sentinel.co/pricing'</span>)<span class="op">;</span>
 <span class="kw">const</span> pricing <span class="op">=</span> <span class="kw">await</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
@@ -1647,7 +1846,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     <div class="security-grid">
       <div class="security-item">
         <h4>Agent keys never leave the agent</h4>
-        <p><strong>Direct:</strong> Sentinel mnemonic stays local. <strong>Managed:</strong> EIP-3009 signed locally &mdash; facilitator only receives the signature. In both flows, all private keys remain on the agent.</p>
+        <p><strong>Autonomous:</strong> Sentinel mnemonic stays local. <strong>Managed:</strong> EIP-3009 signed locally &mdash; facilitator only receives the signature. In both flows, all private keys remain on the agent.</p>
       </div>
       <div class="security-item">
         <h4>Tunnel is always agent-to-node</h4>
@@ -1658,8 +1857,8 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
         <p>Managed Plan uses our own facilitator &mdash; no Coinbase, no third party. Verifies EIP-3009 signatures and settles USDC on Base. Fully auditable on-chain. Open source.</p>
       </div>
       <div class="security-item">
-        <h4>Direct = zero trust, Managed = minimal trust</h4>
-        <p><strong>Direct:</strong> Agent pays nodes, no middleman at all. <strong>Managed:</strong> Trust us to provision the subscription, but the tunnel is still direct and we can't see traffic. Agent can switch flows at any time.</p>
+        <h4>Autonomous = zero trust, Managed = minimal trust</h4>
+        <p><strong>Autonomous:</strong> Agent pays nodes, no middleman at all. <strong>Managed:</strong> Trust us to provision the subscription, but the tunnel is still direct and we can't see traffic. Agent can switch flows at any time.</p>
       </div>
     </div>
   </div>
@@ -1725,7 +1924,8 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     <p class="desc">All <code>/vpn/connect/*</code> routes return HTTP 402 until USDC payment is settled. Free endpoints require no payment.</p>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">x402-Protected (payment required)</div>
+      <div class="bar">
+        <div class="label">x402-Protected (payment required)</div>
       </div>
       <pre><code><span class="fn">POST</span> /vpn/connect/1day     <span class="cm">$0.033 USDC</span>
 <span class="fn">POST</span> /vpn/connect/7days    <span class="cm">$0.233 USDC</span>
@@ -1737,7 +1937,8 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">Free endpoints (no payment)</div>
+      <div class="bar">
+        <div class="label">Free endpoints (no payment)</div>
       </div>
       <pre><code><span class="fn">GET</span> /pricing              <span class="cm">Tiers, network, asset info</span>
 <span class="fn">GET</span> /nodes                <span class="cm">Plan nodes &mdash; agent picks or server picks random</span>
@@ -1746,7 +1947,8 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block">
-      <div class="bar">        <div class="label">402 Response &mdash; PAYMENT-REQUIRED header (base64 JSON)</div>
+      <div class="bar">
+        <div class="label">402 Response &mdash; PAYMENT-REQUIRED header (base64 JSON)</div>
       </div>
       <pre><code>{
   <span class="str">"x402Version"</span>: <span class="num">2</span>,
@@ -1773,7 +1975,8 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     <p class="desc">Everything in one script. Pay USDC on Base, get provisioned, connect to VPN, verify IP changed, disconnect. Zero P2P tokens needed.</p>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">e2e-vpn.mjs &mdash; complete agent script (copy-paste ready)</div>
+      <div class="bar">
+        <div class="label">e2e-vpn.mjs &mdash; complete agent script (copy-paste ready)</div>
       </div>
       <pre><code><span class="cm">// npm install @x402/fetch @x402/evm blue-js-sdk viem</span>
 
@@ -1840,7 +2043,8 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block">
-      <div class="bar">        <div class="label">Provisioning response &mdash; full shape</div>
+      <div class="bar">
+        <div class="label">Provisioning response &mdash; full shape</div>
       </div>
       <pre><code>{
   <span class="str">"provisioned"</span>: <span class="kw">true</span>,
@@ -1930,7 +2134,8 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     <p class="desc">All operator-specific variables are in <code>.env</code>. Change these to deploy your own instance with your own wallet, plan, and pricing.</p>
 
     <div class="code-block" style="margin-bottom: 24px;">
-      <div class="bar">        <div class="label">server/.env &mdash; all configurable variables</div>
+      <div class="bar">
+        <div class="label">server/.env &mdash; all configurable variables</div>
       </div>
       <pre><code><span class="cm"># ─── Base Chain (EVM) ───</span>
 
@@ -1984,7 +2189,8 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
     </div>
 
     <div class="code-block" style="margin-top: 24px;">
-      <div class="bar">        <div class="label">sentinel.ts &mdash; tunable constants (in source code)</div>
+      <div class="bar">
+        <div class="label">sentinel.ts &mdash; tunable constants (in source code)</div>
       </div>
       <pre><code><span class="cm">// Bytes to allocate per agent &mdash; how much data each agent can use</span>
 <span class="kw">const</span> <span class="fn">SHARE_BYTES</span> <span class="op">=</span> <span class="num">1_000_000_000</span><span class="op">;</span>  <span class="cm">// 1 GB per agent</span>
