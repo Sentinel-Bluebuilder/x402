@@ -54,6 +54,10 @@ const buildFeeGrantMsg = (sdk as any).buildFeeGrantMsg as (
   },
 ) => EncodedMsg;
 
+const buildRevokeFeeGrantMsg = (sdk as any).buildRevokeFeeGrantMsg as (
+  granter: string, grantee: string,
+) => EncodedMsg;
+
 // RPC query helpers (RPC-first per global rules) — exported from blue-js-sdk at
 // runtime but missing from types/index.d.ts, same situation as buildMsg* above.
 const createRpcQueryClient = (sdk as any).createRpcQueryClient as
@@ -310,8 +314,8 @@ export async function initSentinel(): Promise<{ address: string; planId: number 
   }
 
   // Verify buildMsg functions loaded
-  if (!buildMsgShareSubscription || !buildMsgStartSubscription || !buildFeeGrantMsg) {
-    throw new Error('blue-js-sdk missing required exports (buildMsgShareSubscription, buildFeeGrantMsg)');
+  if (!buildMsgShareSubscription || !buildMsgStartSubscription || !buildFeeGrantMsg || !buildRevokeFeeGrantMsg) {
+    throw new Error('blue-js-sdk missing required exports (buildMsgShareSubscription, buildFeeGrantMsg, buildRevokeFeeGrantMsg)');
   }
 
   const { wallet, account } = await createWallet(mnemonic);
@@ -433,14 +437,47 @@ export interface ProvisionResult {
   instructions: string;
 }
 
+// MsgGrantAllowance hard-fails when the grantee already holds a fee grant
+// (a re-paying agent), and atomicity takes MsgShareSubscription down with it —
+// observed live 2026-06-12 as a 500 PROVISIONING_FAILED on every repeat
+// purchase. Retry once with MsgRevokeAllowance prepended so the stale grant is
+// replaced (fresh spend limit + expiry) in the same atomic TX. Fresh agents
+// never pay the extra round-trip.
+const GRANT_EXISTS = 'fee allowance already exists';
+
+async function broadcastProvision(
+  shareMsg: EncodedMsg,
+  feeGrantMsg: EncodedMsg,
+  sentinelAddr: string,
+  memo: string,
+): Promise<BroadcastResult> {
+  let result: BroadcastResult | null = null;
+  let thrown: Error | null = null;
+  try {
+    result = await safeBroadcast!([shareMsg, feeGrantMsg], memo);
+  } catch (err) {
+    thrown = err as Error;
+  }
+
+  const log = thrown ? thrown.message || '' : result!.code === 0 ? '' : result!.rawLog || '';
+  if (!log.includes(GRANT_EXISTS)) {
+    if (thrown) throw thrown;
+    return result!;
+  }
+
+  console.log(`[sentinel] ${sentinelAddr} already has a fee grant — revoking and re-granting...`);
+  const revokeMsg = buildRevokeFeeGrantMsg(operatorAddress, sentinelAddr);
+  return safeBroadcast!([shareMsg, revokeMsg, feeGrantMsg], memo);
+}
+
 /**
  * Provision VPN access for an agent on the Sentinel chain.
  *
  * 1. Get available subscription (or create one)
  * 2. Share subscription with agent's Sentinel address
- * 3. Grant fee allowance so agent pays 0 gas
+ * 3. Grant fee allowance so agent pays 0 gas (revoking any stale grant first)
  *
- * Both messages batched into a single TX for atomicity.
+ * All messages batched into a single TX for atomicity.
  */
 export async function provisionAgent(
   sentinelAddr: string,
@@ -477,7 +514,7 @@ export async function provisionAgent(
     console.log(`[sentinel] Provisioning ${days}d for ${sentinelAddr} (sub ${slot.id})...`);
 
     try {
-      const result = await safeBroadcast([shareMsg, feeGrantMsg], `x402 provision ${days}d`);
+      const result = await broadcastProvision(shareMsg, feeGrantMsg, sentinelAddr, `x402 provision ${days}d`);
 
       if (result.code === 0) {
         slot.allocations++;
@@ -532,7 +569,7 @@ export async function provisionAgent(
     bytes: SHARE_BYTES,
   });
 
-  const result = await safeBroadcast([shareMsg, feeGrantMsg], `x402 provision ${days}d`);
+  const result = await broadcastProvision(shareMsg, feeGrantMsg, sentinelAddr, `x402 provision ${days}d`);
   if (result.code !== 0) {
     throw new Error(`Sentinel TX failed on new sub ${subscriptionId} (code ${result.code}): ${result.rawLog}`);
   }
