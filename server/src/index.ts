@@ -4,7 +4,7 @@ import { paymentMiddleware, x402ResourceServer } from '@x402/express';
 import { ExactEvmScheme } from '@x402/evm/exact/server';
 import { createFacilitatorConfig } from '@coinbase/x402';
 import { HTTPFacilitatorClient, type FacilitatorConfig } from '@x402/core/server';
-import { initSentinel, provisionAgent, checkAgentStatus, getPlanNodes, checkProvisioningCapacity } from './sentinel.js';
+import { initSentinel, provisionAgent, checkAgentStatus, checkProvisioningCapacity, getEnrichedPlanNodes, matchNodesByCountry } from './sentinel.js';
 import { createSelfHostedFacilitator, startFacilitatorServer } from './facilitator.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -114,6 +114,38 @@ app.use(async (req, res, next) => {
       nextAction: "Use the `address` field returned by createWallet() from 'blue-js-sdk/ai-path' — do not hand-construct this.",
       docs: '/manifest',
     });
+  }
+
+  // Country preference — if the agent asked for a country no online plan node
+  // can serve, reject BEFORE payment instead of silently handing back a node
+  // somewhere else. Fails open if node enrichment errors (provisioning then
+  // falls back to a random node, and the response carries nodeCountry: null).
+  const country = body.country;
+  if (country !== undefined) {
+    if (typeof country !== 'string' || country.trim().length === 0) {
+      return res.status(400).json({
+        code: 'COUNTRY_UNAVAILABLE',
+        message: '`country` must be a non-empty string — ISO 3166-1 alpha-2 code ("DE") or country name ("Germany").',
+        nextAction: 'Resend with a valid country, or omit `country` to let the server pick a node. GET /nodes lists each node with its country.',
+        docs: '/nodes',
+      });
+    }
+    try {
+      const enriched = await getEnrichedPlanNodes();
+      const matches = matchNodesByCountry(enriched, country);
+      if (matches.length === 0) {
+        const available = [...new Set(enriched.filter(n => n.online && n.country).map(n => n.country))];
+        return res.status(400).json({
+          code: 'COUNTRY_UNAVAILABLE',
+          message: `No online node in this plan serves "${country}". You have NOT been charged — this check runs before payment.`,
+          availableCountries: available,
+          nextAction: 'Resend with one of availableCountries, or omit `country` to let the server pick. GET /nodes shows live per-node geo data.',
+          docs: '/nodes',
+        });
+      }
+    } catch (err) {
+      console.warn('[x402] Country pre-check errored (continuing):', (err as Error).message);
+    }
   }
 
   // Capacity check — if the operator provably cannot provision (subscription
@@ -263,7 +295,8 @@ app.get('/manifest', (_req, res) => {
     description: 'Pay USDC, get a Sentinel dVPN subscription. One HTTP request, one EIP-3009 signature.',
     tldr: [
       'You need: (a) an EVM wallet with USDC on Base, (b) a Sentinel wallet from `createWallet()` in `blue-js-sdk/ai-path`.',
-      `POST ${network === 'eip155:8453' ? 'https://x402.sentinel.co' : '/'}/vpn/connect/30days with { sentinelAddr } using @x402/fetch to auto-sign the 402.`,
+      'Fresh machine? Run `await setup()` from `blue-js-sdk/ai-path` first — it auto-downloads V2Ray (no admin needed) and checks WireGuard, so you never need to install a tunnel binary by hand.',
+      `POST ${network === 'eip155:8453' ? 'https://x402.sentinel.co' : '/'}/vpn/connect/30days with { sentinelAddr } using @x402/fetch to auto-sign the 402. Add { country: "DE" } to get a node in a specific country (GET /nodes lists what is available).`,
       'Take { subscriptionId, feeGranter, nodeAddress } from the 200 response and pass them to `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`.',
       'Tunnel is up. You paid $1.00 USDC, zero gas on Base, zero gas on Sentinel.',
     ],
@@ -343,7 +376,7 @@ app.get('/manifest', (_req, res) => {
       free: [
         { method: 'GET', path: '/manifest', description: 'This document' },
         { method: 'GET', path: '/pricing', description: 'Human pricing table' },
-        { method: 'GET', path: '/nodes', description: 'VPN nodes in operator plan' },
+        { method: 'GET', path: '/nodes', description: 'VPN nodes in operator plan with live geo data (country, city, protocol, online) and a byCountry summary' },
         { method: 'GET', path: '/health', description: 'Uptime check' },
         { method: 'GET', path: '/agent/:sentinelAddr', description: 'Subscription + fee-grant status' },
       ],
@@ -357,6 +390,12 @@ app.get('/manifest', (_req, res) => {
           required: true,
           description: 'Agent Sentinel bech32 address — receives the subscription share and fee grant',
         },
+        country: {
+          type: 'string',
+          required: false,
+          description: 'Preferred node country — ISO 3166-1 alpha-2 code ("DE") or name ("Germany"). Validated BEFORE payment: if no online plan node matches, you get COUNTRY_UNAVAILABLE with availableCountries and are not charged. Omit to let the server pick.',
+          example: 'DE',
+        },
       },
     },
     response: {
@@ -368,6 +407,7 @@ app.get('/manifest', (_req, res) => {
           planId: 'number',
           feeGranter: 'string (sent1...)',
           nodeAddress: 'string (sentnode1...)',
+          nodeCountry: 'string | null — country of nodeAddress when a country was requested and matched',
           nodes: 'string[]',
           sentinelTxHash: 'string',
           expiresAt: 'string (ISO 8601)',
@@ -384,13 +424,14 @@ app.get('/manifest', (_req, res) => {
           MISSING_SENTINEL_ADDR: { status: 400, meaning: 'Request body did not include sentinelAddr.' },
           INVALID_SENTINEL_ADDR: { status: 400, meaning: "sentinelAddr is not a valid sent1-bech32 address — use createWallet() from 'blue-js-sdk/ai-path'." },
           UNKNOWN_TIER: { status: 404, meaning: 'Path tier is not one of 1day | 7days | 30days.' },
+          COUNTRY_UNAVAILABLE: { status: 400, meaning: 'Requested country has no online plan node. Returned BEFORE payment — no USDC charged. Response includes availableCountries; resend with one of those or omit country.' },
           PAYMENT_REQUIRED: { status: 402, meaning: 'Sign EIP-3009 transferWithAuthorization and resend with PAYMENT-SIGNATURE header. @x402/fetch handles this automatically.' },
           CAPACITY_EXHAUSTED: { status: 503, meaning: 'Operator cannot provision right now (subscription pool full and operator balance below new-subscription cost). Returned BEFORE payment — no USDC charged. Retry later; re-checked every 60s.' },
           PROVISIONING_FAILED: { status: 500, meaning: 'Sentinel TX failed after payment verification. USDC was NOT charged — settlement only happens after a successful 2xx response. Safe to retry.' },
           INTERNAL_ERROR: { status: 500, meaning: 'Unexpected server error. Open an issue if reproducible.' },
           NOT_FOUND: { status: 404, meaning: 'No route matches. See /manifest for endpoints.' },
         },
-        prePaymentGuarantee: 'MISSING_SENTINEL_ADDR / INVALID_SENTINEL_ADDR / UNKNOWN_TIER / CAPACITY_EXHAUSTED are returned BEFORE paymentMiddleware. Beyond that, USDC settlement only occurs after a successful 2xx response — error responses (including PROVISIONING_FAILED) never charge the agent.',
+        prePaymentGuarantee: 'MISSING_SENTINEL_ADDR / INVALID_SENTINEL_ADDR / UNKNOWN_TIER / COUNTRY_UNAVAILABLE / CAPACITY_EXHAUSTED are returned BEFORE paymentMiddleware. Beyond that, USDC settlement only occurs after a successful 2xx response — error responses (including PROVISIONING_FAILED) never charge the agent.',
       },
     },
     flow: [
@@ -401,7 +442,7 @@ app.get('/manifest', (_req, res) => {
       { step: 5, actor: 'facilitator', action: 'Settle USDC on Base (~2s)' },
       { step: 6, actor: 'server', action: 'Atomic MsgShareSubscription + MsgGrantAllowance on Sentinel' },
       { step: 7, actor: 'server', action: 'Respond 200 with subscriptionId, feeGranter, nodeAddress' },
-      { step: 8, actor: 'agent', action: 'Call connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })' },
+      { step: 8, actor: 'agent', action: 'Run setup() once on a fresh machine (auto-installs V2Ray), then connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })' },
       { step: 9, actor: 'agent', action: 'MsgStartSession (gas paid by operator via fee grant)' },
       { step: 10, actor: 'agent', action: 'Direct WireGuard/V2Ray handshake with node — tunnel up' },
     ],
@@ -415,8 +456,9 @@ app.get('/manifest', (_req, res) => {
       code: [
         "import { x402Client, wrapFetchWithPayment } from '@x402/fetch';",
         "import { ExactEvmScheme } from '@x402/evm/exact/client';",
-        "import { createWallet, connect, disconnect } from 'blue-js-sdk/ai-path';",
+        "import { setup, createWallet, connect, disconnect } from 'blue-js-sdk/ai-path';",
         '',
+        'await setup();                                // fresh machine: auto-downloads V2Ray, checks WireGuard',
         'const wallet = await createWallet();          // { address: sent1..., mnemonic }',
         'const scheme = new ExactEvmScheme({ address, signTypedData });',
         'const client = new x402Client();',
@@ -425,7 +467,7 @@ app.get('/manifest', (_req, res) => {
         '',
         "const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {",
         "  method: 'POST',",
-        '  body: JSON.stringify({ sentinelAddr: wallet.address }),',
+        "  body: JSON.stringify({ sentinelAddr: wallet.address, country: 'DE' }),  // country optional",
         '});',
         'const { subscriptionId, feeGranter, nodeAddress } = await res.json();',
         'await connect({ mnemonic: wallet.mnemonic, subscriptionId, feeGranter, nodeAddress });',
@@ -439,10 +481,31 @@ app.get('/manifest', (_req, res) => {
       gasGrantedByOperator: true,
       rpc: process.env.SENTINEL_RPC_URL || 'https://rpc.sentinel.co:443',
       lcd: process.env.SENTINEL_LCD_URL || 'https://lcd.sentinel.co',
+      rpcFallbacks: [
+        'https://rpc.sentinel.co:443',
+        'https://sentinel-rpc.polkachu.com',
+        'https://rpc.mathnodes.com',
+        'https://sentinel-rpc.publicnode.com:443',
+        'https://rpc.sentinel.quokkastake.io:443',
+        'https://rpc.sentinel.suchnode.net:443',
+      ],
+      lcdFallbacks: [
+        'https://lcd.sentinel.co',
+        'https://sentinel-api.polkachu.com',
+        'https://api.sentinel.quokkastake.io',
+        'https://sentinel-rest.publicnode.com',
+        'https://api.sentinel.suchnode.net',
+      ],
+      endpointsNote: 'blue-js-sdk ships the first five RPC / four LCD entries as built-in fallbacks and rotates automatically; suchnode.net is an additional public endpoint (suchnode.net) you can add at runtime with addRpcEndpoint(url).',
       addressPrefix: 'sent',
       coinType: 118,
       denom: 'udvpn',
       denomDecimals: 6,
+      setup: {
+        package: 'blue-js-sdk/ai-path',
+        fn: 'await setup()',
+        note: 'Run once on a fresh machine BEFORE connect(). Auto-downloads V2Ray 5.2.1 to ~/.sentinel-sdk/bin (no admin rights needed) and detects/auto-installs WireGuard (Windows MSI install needs admin). Returns { ready, capabilities, recommended, issues }. If capabilities includes "v2ray" you can connect with zero manual installs.',
+      },
       walletCreate: {
         package: 'blue-js-sdk/ai-path',
         fn: 'createWallet()',
@@ -503,18 +566,23 @@ app.get('/llms.txt', (_req, res) => {
   res.type('text/plain').send(llmsTxtCache);
 });
 
-// Node list — free, agents can choose or let server pick random
+// Node list — free, enriched with live geo data from each node's /status
+// endpoint so agents can see WHERE each node is and choose (or request a
+// country in the POST body and let the server pick a matching node).
 app.get('/nodes', async (_req, res) => {
   try {
-    const nodes = await getPlanNodes();
+    const nodes = await getEnrichedPlanNodes();
+    const byCountry: Record<string, number> = {};
+    for (const n of nodes) {
+      if (n.online && n.country) byCountry[n.country] = (byCountry[n.country] || 0) + 1;
+    }
     res.json({
       planId: parseInt(process.env.SENTINEL_PLAN_ID || '42', 10),
       count: nodes.length,
-      nodes: nodes.map(n => ({
-        address: n.address,
-        remote_addrs: n.remote_addrs,
-      })),
-      note: 'Pass nodeAddress in your connect() call to choose a specific node. If omitted from the provision response, a random node is selected.',
+      online: nodes.filter(n => n.online).length,
+      byCountry,
+      nodes,
+      note: 'Pass { country: "DE" } (ISO code or name) in the POST body to get a node in that country, or pass a specific nodeAddress from this list to connect(). Omit both and the server picks a random node.',
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -567,8 +635,12 @@ async function provisionVpn(days: number, body: Record<string, unknown>) {
     throw new Error('Include sentinelAddr (sent1...) in request body');
   }
 
-  console.log(`[x402] Payment verified. Provisioning ${days} days for ${sentinelAddr}... (USDC settles only after a 2xx response)`);
-  const result = await provisionAgent(sentinelAddr, days);
+  const country = typeof body.country === 'string' && body.country.trim().length > 0
+    ? body.country.trim()
+    : undefined;
+
+  console.log(`[x402] Payment verified. Provisioning ${days} days for ${sentinelAddr}${country ? ` (country: ${country})` : ''}... (USDC settles only after a 2xx response)`);
+  const result = await provisionAgent(sentinelAddr, days, country);
   return result;
 }
 

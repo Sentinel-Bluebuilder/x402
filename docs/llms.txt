@@ -8,6 +8,8 @@ The agent signs an EIP-3009 message off-chain. The self-hosted facilitator settl
 
 The agent needs exactly one thing before calling x402: an EVM private key with at least $1.00 USDC on Base (chainId 8453). Everything else — Sentinel wallet, P2P gas, node selection, tunnel keys — is provisioned by x402 or generated locally by `blue-js-sdk/ai-path`.
 
+On a fresh machine with no tunnel binaries, run `await setup()` from `blue-js-sdk/ai-path` once before `connect()`. It auto-downloads V2Ray 5.2.1 to `~/.sentinel-sdk/bin` (no admin rights needed) and detects/auto-installs WireGuard (the Windows MSI install needs admin). It returns `{ ready, capabilities, recommended, issues }` — if `capabilities` includes `v2ray`, you can connect with zero manual installs.
+
 How to fund a fresh EVM key with USDC on Base:
 - **Coinbase / Coinbase CDP**: withdraw USDC and pick "Base" as the network. ~30 seconds, no bridge fee.
 - **Any CEX that supports Base withdrawals** (Binance, Kraken, OKX, Bybit): same flow.
@@ -22,7 +24,7 @@ No ETH is required for the agent's wallet — EIP-3009 `transferWithAuthorizatio
 
 Base URL: `https://x402.sentinel.co`
 
-Paid (HTTP 402, body `{ "sentinelAddr": "sent1..." }`):
+Paid (HTTP 402, body `{ "sentinelAddr": "sent1...", "country": "DE" }` — `country` optional):
 - POST `/vpn/connect/1day` — $0.033 USDC, 1 day
 - POST `/vpn/connect/7days` — $0.233 USDC, 7 days
 - POST `/vpn/connect/30days` — $1.00 USDC, 30 days
@@ -30,7 +32,7 @@ Paid (HTTP 402, body `{ "sentinelAddr": "sent1..." }`):
 Free:
 - GET `/manifest` — full machine-readable protocol spec (use this first, ~300 tokens)
 - GET `/pricing` — human pricing table
-- GET `/nodes` — VPN nodes in operator plan
+- GET `/nodes` — VPN nodes in operator plan with live geo data (country, city, protocol, online) and a `byCountry` summary
 - GET `/health` — uptime
 - GET `/agent/:sentinelAddr` — subscription + fee-grant status
 
@@ -44,14 +46,14 @@ Free:
 
 ## Agent flow
 
-1. POST to a paid endpoint with `{ sentinelAddr }`.
+1. POST to a paid endpoint with `{ sentinelAddr }` (add `country` to request a node location — validated before payment).
 2. Server returns 402 with `PAYMENT-REQUIRED` header (amount, asset, payTo, network).
 3. Agent signs EIP-3009 locally (EIP-712).
 4. Agent resends with `PAYMENT-SIGNATURE` header — `@x402/fetch` does this automatically.
 5. Facilitator settles USDC on Base.
 6. Server submits atomic `MsgShareSubscription` + `MsgGrantAllowance` on Sentinel.
-7. Server returns 200 `{ provisioned, subscriptionId, planId, feeGranter, nodeAddress, nodes[], sentinelTxHash, expiresAt }`.
-8. Agent calls `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`.
+7. Server returns 200 `{ provisioned, subscriptionId, planId, feeGranter, nodeAddress, nodeCountry, nodes[], sentinelTxHash, expiresAt }`.
+8. Agent runs `setup()` once on a fresh machine, then `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`.
 9. `MsgStartSession` on Sentinel — gas paid by `feeGranter`.
 10. Direct WireGuard/V2Ray handshake — tunnel up.
 
@@ -61,10 +63,11 @@ Free:
 import { x402Client, wrapFetchWithPayment } from '@x402/fetch';
 import { ExactEvmScheme } from '@x402/evm/exact/client';
 import {
-  createWallet, connect,
+  setup, createWallet, connect,
   rpcQueryNodesForPlan, createRpcQueryClientWithFallback,
 } from 'blue-js-sdk/ai-path';
 
+await setup(); // fresh machine: auto-downloads V2Ray, checks WireGuard
 const wallet = await createWallet();
 const scheme = new ExactEvmScheme({ address, signTypedData });
 const client = new x402Client();
@@ -74,7 +77,7 @@ const paidFetch = wrapFetchWithPayment(fetch, client);
 const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ sentinelAddr: wallet.address }),
+  body: JSON.stringify({ sentinelAddr: wallet.address, country: 'DE' }), // country optional
 });
 const provision = await res.json();
 const { subscriptionId, feeGranter, planId } = provision;
@@ -100,15 +103,17 @@ const vpn = await connect({
 
 - `@x402/fetch` — wraps `fetch`, auto-signs 402 responses
 - `@x402/evm` — `ExactEvmScheme` EIP-3009 signer
-- `blue-js-sdk/ai-path` — Sentinel wallet (`createWallet`, `importWallet`), tunnel (`connect`, `disconnect`), and plan/node discovery (`rpcQueryNodesForPlan`, `createRpcQueryClientWithFallback`) — WireGuard/V2Ray
+- `blue-js-sdk/ai-path` — environment setup (`setup` — auto-installs tunnel binaries), Sentinel wallet (`createWallet`, `importWallet`), tunnel (`connect`, `disconnect`), and plan/node discovery (`rpcQueryNodesForPlan`, `createRpcQueryClientWithFallback`) — WireGuard/V2Ray
 
 ## Request schema
 
 ```json
-{ "sentinelAddr": "sent1..." }
+{ "sentinelAddr": "sent1...", "country": "DE" }
 ```
 
 `sentinelAddr` matches `^sent1[0-9a-z]{38}$` (Sentinel bech32). Generate with `createWallet()` from `blue-js-sdk/ai-path`.
+
+`country` is optional — ISO 3166-1 alpha-2 code (`DE`) or name (`Germany`). If no online plan node matches, the server returns `COUNTRY_UNAVAILABLE` with `availableCountries` **before** payment. Check `GET /nodes` for the live `byCountry` summary.
 
 ## Response schema (200)
 
@@ -119,6 +124,7 @@ const vpn = await connect({
   "planId": 42,
   "feeGranter": "sent1...",
   "nodeAddress": "sentnode1...",
+  "nodeCountry": "Germany",
   "nodes": ["sentnode1a...", "sentnode1b..."],
   "sentinelTxHash": "...",
   "expiresAt": "2026-06-17T00:00:00Z"
@@ -134,6 +140,7 @@ All errors are JSON `{ code, message, nextAction, docs }`. Branch on `code` — 
 | `MISSING_SENTINEL_ADDR` | 400 | yes | Body did not include `sentinelAddr`. |
 | `INVALID_SENTINEL_ADDR` | 400 | yes | `sentinelAddr` does not match `^sent1[0-9a-z]{38}$`. Use `createWallet()` from `blue-js-sdk/ai-path`. |
 | `UNKNOWN_TIER` | 404 | yes | Path tier is not `1day` \| `7days` \| `30days`. |
+| `COUNTRY_UNAVAILABLE` | 400 | yes | Requested `country` has no online plan node. Response includes `availableCountries` — resend with one of those or omit `country`. |
 | `CAPACITY_EXHAUSTED` | 503 | yes | Operator cannot provision right now (subscription pool full, operator balance below new-subscription cost). Retry later — re-checked every 60s. |
 | `PAYMENT_REQUIRED` | 402 | — | Sign EIP-3009 `transferWithAuthorization` and resend with the `PAYMENT-SIGNATURE` header. `@x402/fetch` handles this automatically. |
 | `PROVISIONING_FAILED` | 500 | — | Sentinel TX failed after payment verification. USDC was **not** charged (settlement only happens on 2xx). Safe to retry. |
@@ -148,6 +155,13 @@ All errors are JSON `{ code, message, nextAction, docs }`. Branch on `code` — 
 - Every settlement is a verifiable public Base transaction.
 - Operator stores `sentinelAddr` only. No IPs, traffic, or logs.
 - Tunnel is end-to-end encrypted (WireGuard or V2Ray).
+
+## Sentinel chain endpoints
+
+`blue-js-sdk` ships verified RPC and LCD fallbacks and rotates through them automatically (`createRpcQueryClientWithFallback()`); add more at runtime with `addRpcEndpoint(url)`.
+
+- RPC: `rpc.sentinel.co:443`, `sentinel-rpc.polkachu.com`, `rpc.mathnodes.com`, `sentinel-rpc.publicnode.com`, `rpc.sentinel.quokkastake.io`, `rpc.sentinel.suchnode.net` (additional public endpoint, suchnode.net)
+- LCD (fallback only): `lcd.sentinel.co`, `sentinel-api.polkachu.com`, `api.sentinel.quokkastake.io`, `sentinel-rest.publicnode.com`, `api.sentinel.suchnode.net`
 
 ## Quick discovery for agents
 

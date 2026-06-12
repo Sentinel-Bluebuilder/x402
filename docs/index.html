@@ -38,9 +38,9 @@
       "gasless": true,
       "approveRequired": false
     },
-    "request": { "contentType": "application/json", "body": { "sentinelAddr": "^sent1[0-9a-z]{38}$" } },
+    "request": { "contentType": "application/json", "body": { "sentinelAddr": "^sent1[0-9a-z]{38}$", "country": "optional — ISO code or name, e.g. DE; validated before payment (COUNTRY_UNAVAILABLE if unmatched)" } },
     "response": {
-      "200": { "subscriptionId": "number", "planId": "number", "feeGranter": "sent1...", "nodeAddress": "sentnode1...", "nodes": "string[]", "expiresAt": "ISO8601" },
+      "200": { "subscriptionId": "number", "planId": "number", "feeGranter": "sent1...", "nodeAddress": "sentnode1...", "nodeCountry": "string|null", "nodes": "string[]", "expiresAt": "ISO8601" },
       "402": "Sign EIP-3009 transferWithAuthorization, resend with PAYMENT-SIGNATURE header"
     },
     "packages": { "payment": "@x402/fetch", "scheme": "@x402/evm", "sentinel": "blue-js-sdk/ai-path" },
@@ -51,6 +51,9 @@
       "denom": "udvpn",
       "rpc": "https://rpc.sentinel.co:443",
       "lcd": "https://lcd.sentinel.co",
+      "rpcFallbacks": ["https://rpc.sentinel.co:443", "https://sentinel-rpc.polkachu.com", "https://rpc.mathnodes.com", "https://sentinel-rpc.publicnode.com", "https://rpc.sentinel.quokkastake.io", "https://rpc.sentinel.suchnode.net:443"],
+      "lcdFallbacks": ["https://lcd.sentinel.co", "https://sentinel-api.polkachu.com", "https://api.sentinel.quokkastake.io", "https://sentinel-rest.publicnode.com", "https://api.sentinel.suchnode.net"],
+      "setup": "await setup() from blue-js-sdk/ai-path — run once on a fresh machine; auto-downloads V2Ray (no admin), checks WireGuard; returns { ready, capabilities, recommended, issues }",
       "walletCreate": "createWallet() from blue-js-sdk/ai-path → { address, mnemonic }",
       "connect": "connect({ mnemonic, subscriptionId, feeGranter, nodeAddress }) → { connected, ip, protocol }",
       "disconnect": "disconnect() — ends session on-chain (fee-granted), tears down tunnel",
@@ -60,7 +63,7 @@
       "/manifest": "Full JSON spec",
       "/llms.txt": "Human + AI markdown summary",
       "/pricing": "Human pricing table",
-      "/nodes": "VPN nodes in operator plan",
+      "/nodes": "VPN nodes in operator plan with live geo data (country, city, protocol, online) + byCountry summary",
       "/health": "Uptime",
       "/agent/:sentinelAddr": "Subscription + fee-grant status"
     }
@@ -1824,7 +1827,10 @@ section h3 {
 <span class="kw">import</span> { <span class="fn">createWalletClient</span>, <span class="fn">http</span> } <span class="kw">from</span> <span class="str">'viem'</span><span class="op">;</span>
 <span class="kw">import</span> { <span class="fn">privateKeyToAccount</span> } <span class="kw">from</span> <span class="str">'viem/accounts'</span><span class="op">;</span>
 <span class="kw">import</span> { <span class="fn">base</span> } <span class="kw">from</span> <span class="str">'viem/chains'</span><span class="op">;</span>
-<span class="kw">import</span> { <span class="fn">createWallet</span>, <span class="fn">connect</span>, <span class="fn">disconnect</span>, <span class="fn">rpcQueryNodesForPlan</span>, <span class="fn">createRpcQueryClientWithFallback</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk/ai-path'</span><span class="op">;</span>
+<span class="kw">import</span> { <span class="fn">setup</span>, <span class="fn">createWallet</span>, <span class="fn">connect</span>, <span class="fn">disconnect</span>, <span class="fn">rpcQueryNodesForPlan</span>, <span class="fn">createRpcQueryClientWithFallback</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk/ai-path'</span><span class="op">;</span>
+
+<span class="cm">// Fresh machine? setup() auto-downloads V2Ray (no admin) + checks WireGuard</span>
+<span class="kw">await</span> <span class="fn">setup</span>()<span class="op">;</span>
 
 <span class="cm">// Create a Sentinel wallet (one-time &mdash; save the mnemonic!)</span>
 <span class="kw">const</span> wallet <span class="op">=</span> <span class="kw">await</span> <span class="fn">createWallet</span>()<span class="op">;</span>
@@ -1852,7 +1858,7 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
 <span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">paidFetch</span>(<span class="str">'https://x402.sentinel.co/vpn/connect/30days'</span><span class="op">,</span> {
   <span class="prop">method</span><span class="op">:</span> <span class="str">'POST'</span><span class="op">,</span>
   <span class="prop">headers</span><span class="op">:</span> { <span class="str">'Content-Type'</span><span class="op">:</span> <span class="str">'application/json'</span> }<span class="op">,</span>
-  <span class="prop">body</span><span class="op">:</span> JSON<span class="op">.</span><span class="fn">stringify</span>({ <span class="prop">sentinelAddr</span><span class="op">:</span> wallet<span class="op">.</span>address })<span class="op">,</span>
+  <span class="prop">body</span><span class="op">:</span> JSON<span class="op">.</span><span class="fn">stringify</span>({ <span class="prop">sentinelAddr</span><span class="op">:</span> wallet<span class="op">.</span>address<span class="op">,</span> <span class="prop">country</span><span class="op">:</span> <span class="str">'DE'</span> })<span class="op">,</span> <span class="cm">// country optional &mdash; validated BEFORE payment</span>
 })<span class="op">;</span>
 
 <span class="kw">const</span> provision <span class="op">=</span> <span class="kw">await</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
@@ -1861,7 +1867,8 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
 <span class="cm">//   subscriptionId: 1192288,</span>
 <span class="cm">//   planId: 42,</span>
 <span class="cm">//   feeGranter: 'sent12e03w...',     &larr; operator pays all gas</span>
-<span class="cm">//   nodeAddress: 'sentnode1...',      &larr; random node &mdash; or choose from nodes[]</span>
+<span class="cm">//   nodeAddress: 'sentnode1...',      &larr; node matching country &mdash; or choose from nodes[]</span>
+<span class="cm">//   nodeCountry: 'Germany',           &larr; verified location of nodeAddress</span>
 <span class="cm">//   nodes: ['sentnode1a...', ...],   &larr; full list of plan nodes</span>
 <span class="cm">//   sentinelTxHash: 'F1FE3C...',</span>
 <span class="cm">//   expiresAt: '2026-05-14T...',</span>
@@ -2122,7 +2129,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 <span class="fn">POST</span> /vpn/connect/7days    <span class="cm">$0.233 USDC</span>
 <span class="fn">POST</span> /vpn/connect/30days   <span class="cm">$1.00  USDC</span>
 
-<span class="cm">Body:</span> { <span class="str">"sentinelAddr"</span>: <span class="str">"sent1..."</span> }
+<span class="cm">Body:</span> { <span class="str">"sentinelAddr"</span>: <span class="str">"sent1..."</span>, <span class="str">"country"</span>: <span class="str">"DE"</span> }   <span class="cm">country optional &mdash; validated before payment</span>
 <span class="cm">Without payment &rarr;</span> <span class="num">402</span> + PAYMENT-REQUIRED header
 <span class="cm">With payment    &rarr;</span> <span class="num">200</span> + provisioning result</code></pre>
     </div>
@@ -2132,7 +2139,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
         <div class="label">Free endpoints (no payment)</div>
       </div>
       <pre><code><span class="fn">GET</span> /pricing              <span class="cm">Tiers, network, asset info</span>
-<span class="fn">GET</span> /nodes                <span class="cm">Plan nodes &mdash; agent picks or server picks random</span>
+<span class="fn">GET</span> /nodes                <span class="cm">Plan nodes + live geo (country, city, protocol, byCountry)</span>
 <span class="fn">GET</span> /health               <span class="cm">Server status + uptime</span>
 <span class="fn">GET</span> /agent/:sentinelAddr  <span class="cm">Check subscription status</span></code></pre>
     </div>
@@ -2177,9 +2184,12 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 <span class="kw">import</span> { <span class="fn">privateKeyToAccount</span> } <span class="kw">from</span> <span class="str">'viem/accounts'</span><span class="op">;</span>
 <span class="kw">import</span> { <span class="fn">base</span> } <span class="kw">from</span> <span class="str">'viem/chains'</span><span class="op">;</span>
 <span class="kw">import</span> {
-  <span class="fn">createWallet</span><span class="op">,</span> <span class="fn">connect</span><span class="op">,</span> <span class="fn">disconnect</span><span class="op">,</span>
+  <span class="fn">setup</span><span class="op">,</span> <span class="fn">createWallet</span><span class="op">,</span> <span class="fn">connect</span><span class="op">,</span> <span class="fn">disconnect</span><span class="op">,</span>
   <span class="fn">rpcQueryNodesForPlan</span><span class="op">,</span> <span class="fn">createRpcQueryClientWithFallback</span><span class="op">,</span>
 } <span class="kw">from</span> <span class="str">'blue-js-sdk/ai-path'</span><span class="op">;</span>
+
+<span class="cm">// ── Step 0: Fresh machine? Auto-install tunnel binaries (V2Ray needs no admin) ──</span>
+<span class="kw">await</span> <span class="fn">setup</span>()<span class="op">;</span>
 
 <span class="cm">// ── Step 1: Create Sentinel wallet (one-time) ──</span>
 <span class="kw">const</span> wallet <span class="op">=</span> <span class="kw">await</span> <span class="fn">createWallet</span>()<span class="op">;</span>
@@ -2201,7 +2211,7 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
 <span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">paidFetch</span>(<span class="str">'https://x402.sentinel.co/vpn/connect/30days'</span><span class="op">,</span> {
   <span class="prop">method</span><span class="op">:</span> <span class="str">'POST'</span><span class="op">,</span>
   <span class="prop">headers</span><span class="op">:</span> { <span class="str">'Content-Type'</span><span class="op">:</span> <span class="str">'application/json'</span> }<span class="op">,</span>
-  <span class="prop">body</span><span class="op">:</span> JSON<span class="op">.</span><span class="fn">stringify</span>({ <span class="prop">sentinelAddr</span><span class="op">:</span> wallet<span class="op">.</span>address })<span class="op">,</span>
+  <span class="prop">body</span><span class="op">:</span> JSON<span class="op">.</span><span class="fn">stringify</span>({ <span class="prop">sentinelAddr</span><span class="op">:</span> wallet<span class="op">.</span>address<span class="op">,</span> <span class="prop">country</span><span class="op">:</span> <span class="str">'DE'</span> })<span class="op">,</span> <span class="cm">// country optional</span>
 })<span class="op">;</span>
 
 <span class="kw">const</span> provision <span class="op">=</span> <span class="kw">await</span> res<span class="op">.</span><span class="fn">json</span>()<span class="op">;</span>
@@ -2244,12 +2254,13 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
   <span class="str">"subscriptionId"</span>: <span class="num">1192288</span>,      <span class="cm">&larr; pass to connect()</span>
   <span class="str">"planId"</span>: <span class="num">42</span>,
   <span class="str">"feeGranter"</span>: <span class="str">"sent12e03..."</span>,  <span class="cm">&larr; pass to connect()</span>
-  <span class="str">"nodeAddress"</span>: <span class="str">"sentnode1..."</span>,  <span class="cm">&larr; random node selected &mdash; pass to connect()</span>
+  <span class="str">"nodeAddress"</span>: <span class="str">"sentnode1..."</span>,  <span class="cm">&larr; node selected (matches country if requested) &mdash; pass to connect()</span>
+  <span class="str">"nodeCountry"</span>: <span class="str">"Germany"</span>,       <span class="cm">&larr; verified location of nodeAddress</span>
   <span class="str">"nodes"</span>: [<span class="str">"sentnode1a..."</span>, <span class="str">"sentnode1b..."</span>],  <span class="cm">&larr; full list &mdash; agent can choose</span>
   <span class="str">"sentinelTxHash"</span>: <span class="str">"2C1CFE..."</span>,
   <span class="str">"expiresAt"</span>: <span class="str">"2026-05-14T..."</span>,
   <span class="str">"operatorAddress"</span>: <span class="str">"0xCC689D..."</span>,
-  <span class="str">"instructions"</span>: <span class="str">"connect({ mnemonic, nodeAddress, subscriptionId, feeGranter }) from 'blue-js-sdk/ai-path' — if nodeAddress is empty, call rpcQueryNodesForPlan(rpc, planId, { status: 1 }) and use items[0].address"</span>
+  <span class="str">"instructions"</span>: <span class="str">"import { setup, connect } from 'blue-js-sdk/ai-path'; await setup(); /* installs V2Ray automatically if no tunnel binary is present */ await connect({ mnemonic, nodeAddress, subscriptionId, feeGranter })"</span>
 }</code></pre>
     </div>
   </div>

@@ -8,6 +8,8 @@
  * - Subscription pool management (8 allocations per subscription)
  */
 
+import { request as httpsRequest } from 'node:https';
+
 import {
   createWallet,
   createSafeBroadcaster,
@@ -430,11 +432,63 @@ export interface ProvisionResult {
   planId: number;
   feeGranter: string;
   nodeAddress: string;
+  nodeCountry: string | null;
   nodes: string[];
   sentinelTxHash: string;
   expiresAt: string;
   operatorAddress: string;
   instructions: string;
+}
+
+// Builds the provision response. When the agent requested a country, pick a
+// node verified (via its /status endpoint) to be in that country; otherwise —
+// or if no match is online — fall back to a random plan node. The recommended
+// node MUST come from the plan: the shared subscription only works with plan
+// nodes, so global SDK country discovery would hand the agent a dead session.
+async function buildProvisionResult(opts: {
+  sentinelAddr: string;
+  days: number;
+  subscriptionId: number;
+  txHash: string;
+  expiresAt: string;
+  country?: string;
+}): Promise<ProvisionResult> {
+  const planNodes = await getPlanNodes();
+  let recommended = '';
+  let nodeCountry: string | null = null;
+
+  if (opts.country) {
+    try {
+      const matches = matchNodesByCountry(await getEnrichedPlanNodes(), opts.country);
+      if (matches.length > 0) {
+        const pick = matches[Math.floor(Math.random() * matches.length)];
+        recommended = pick.address;
+        nodeCountry = pick.country;
+      } else {
+        console.warn(`[sentinel] No online plan node matches country "${opts.country}" — falling back to random node`);
+      }
+    } catch (err) {
+      console.warn('[sentinel] Country-aware node pick failed, falling back to random:', (err as Error).message);
+    }
+  }
+
+  if (!recommended) recommended = pickRandomNode(planNodes) || '';
+
+  return {
+    provisioned: true,
+    sentinelAddr: opts.sentinelAddr,
+    days: opts.days,
+    subscriptionId: opts.subscriptionId,
+    planId: PLAN_ID,
+    feeGranter: operatorAddress,
+    nodeAddress: recommended,
+    nodeCountry,
+    nodes: planNodes.map(n => n.address),
+    sentinelTxHash: opts.txHash,
+    expiresAt: opts.expiresAt,
+    operatorAddress,
+    instructions: `import { setup, connect } from 'blue-js-sdk/ai-path'; await setup(); /* installs V2Ray automatically if no tunnel binary is present */ await connect({ mnemonic, nodeAddress: '${recommended}', subscriptionId: '${opts.subscriptionId}', feeGranter: '${operatorAddress}' })`,
+  };
 }
 
 // MsgGrantAllowance hard-fails when the grantee already holds a fee grant
@@ -482,6 +536,7 @@ async function broadcastProvision(
 export async function provisionAgent(
   sentinelAddr: string,
   days: number,
+  country?: string,
 ): Promise<ProvisionResult> {
   if (!safeBroadcast) {
     throw new Error('Sentinel not initialized — call initSentinel() first');
@@ -519,22 +574,14 @@ export async function provisionAgent(
       if (result.code === 0) {
         slot.allocations++;
         console.log(`[sentinel] Provisioned! TX: ${result.transactionHash}`);
-        const planNodes = await getPlanNodes();
-        const recommended = pickRandomNode(planNodes) || '';
-        return {
-          provisioned: true,
+        return buildProvisionResult({
           sentinelAddr,
           days,
           subscriptionId: slot.id,
-          planId: PLAN_ID,
-          feeGranter: operatorAddress,
-          nodeAddress: recommended,
-          nodes: planNodes.map(n => n.address),
-          sentinelTxHash: result.transactionHash,
+          txHash: result.transactionHash,
           expiresAt: expirationDate.toISOString(),
-          operatorAddress,
-          instructions: `import { connect } from 'blue-js-sdk/ai-path'; await connect({ mnemonic, nodeAddress: '${recommended}', subscriptionId: '${slot.id}', feeGranter: '${operatorAddress}' })`,
-        };
+          country,
+        });
       }
 
       // Non-zero code returned (rare — safeBroadcast usually throws)
@@ -578,22 +625,14 @@ export async function provisionAgent(
   if (slot) slot.allocations++;
 
   console.log(`[sentinel] Provisioned on new sub ${subscriptionId}! TX: ${result.transactionHash}`);
-  const planNodes = await getPlanNodes();
-  const recommended = pickRandomNode(planNodes) || '';
-  return {
-    provisioned: true,
+  return buildProvisionResult({
     sentinelAddr,
     days,
     subscriptionId,
-    planId: PLAN_ID,
-    feeGranter: operatorAddress,
-    nodeAddress: recommended,
-    nodes: planNodes.map(n => n.address),
-    sentinelTxHash: result.transactionHash,
+    txHash: result.transactionHash,
     expiresAt: expirationDate.toISOString(),
-    operatorAddress,
-    instructions: `import { connect } from 'blue-js-sdk/ai-path'; await connect({ mnemonic, nodeAddress: '${recommended}', subscriptionId: '${subscriptionId}', feeGranter: '${operatorAddress}' })`,
-  };
+    country,
+  });
 }
 
 // ─── Node Discovery ───
@@ -641,6 +680,127 @@ export async function getPlanNodes(): Promise<{ address: string; remote_addrs: s
 function pickRandomNode(nodes: { address: string }[]): string | undefined {
   if (nodes.length === 0) return undefined;
   return nodes[Math.floor(Math.random() * nodes.length)].address;
+}
+
+// ─── Node Geo Enrichment ───
+// Each dVPN node serves GET /status on its remote_addr (self-signed TLS by
+// design) with location, protocol type (1 = wireguard, 2 = v2ray), moniker and
+// peer counts. We probe plan nodes so agents can see WHERE each node is and
+// request a country — global SDK country discovery is useless here because the
+// shared subscription only works with plan nodes.
+
+export interface EnrichedNode {
+  address: string;
+  remote_addrs: string[];
+  online: boolean;
+  country: string | null;
+  city: string | null;
+  protocol: 'wireguard' | 'v2ray' | null;
+  moniker: string | null;
+  peers: number | null;
+  maxPeers: number | null;
+}
+
+const STATUS_PROBE_TIMEOUT = 7_000;
+
+function probeNodeStatus(remoteAddr: string): Promise<Record<string, any> | null> {
+  return new Promise((resolve) => {
+    let url: URL;
+    try {
+      url = new URL(remoteAddr);
+    } catch (err) {
+      console.warn(`[sentinel] Unparseable remote_addr "${remoteAddr}":`, (err as Error).message);
+      resolve(null);
+      return;
+    }
+
+    const req = httpsRequest(
+      {
+        hostname: url.hostname,
+        port: url.port || 443,
+        path: '/status',
+        method: 'GET',
+        rejectUnauthorized: false, // dVPN nodes use self-signed certs by design
+        timeout: STATUS_PROBE_TIMEOUT,
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk: Buffer) => { body += chunk; });
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(body);
+            resolve(json.result || json);
+          } catch (err) {
+            console.warn(`[sentinel] Node ${url.hostname} returned non-JSON /status:`, (err as Error).message);
+            resolve(null);
+          }
+        });
+      },
+    );
+    req.on('timeout', () => req.destroy(new Error('status probe timeout')));
+    req.on('error', (err) => {
+      console.warn(`[sentinel] Status probe failed for ${url.hostname}:${url.port || 443}: ${err.message}`);
+      resolve(null);
+    });
+    req.end();
+  });
+}
+
+let enrichedCache: EnrichedNode[] = [];
+let enrichedCacheTime = 0;
+const ENRICHED_CACHE_TTL = 600_000; // 10 minutes — node geo never moves, online flag drifts slowly
+
+export async function getEnrichedPlanNodes(): Promise<EnrichedNode[]> {
+  if (enrichedCache.length > 0 && Date.now() - enrichedCacheTime < ENRICHED_CACHE_TTL) {
+    return enrichedCache;
+  }
+
+  const nodes = await getPlanNodes();
+  const enriched = await Promise.all(nodes.map(async (n): Promise<EnrichedNode> => {
+    const status = n.remote_addrs[0] ? await probeNodeStatus(n.remote_addrs[0]) : null;
+    return {
+      address: n.address,
+      remote_addrs: n.remote_addrs,
+      online: status !== null,
+      country: status?.location?.country ?? null,
+      city: status?.location?.city ?? null,
+      protocol: status?.type === 1 ? 'wireguard' : status?.type === 2 ? 'v2ray' : null,
+      moniker: status?.moniker ?? null,
+      peers: typeof status?.peers === 'number' ? status.peers : null,
+      maxPeers: typeof status?.max_peers === 'number' ? status.max_peers : null,
+    };
+  }));
+
+  enrichedCache = enriched;
+  enrichedCacheTime = Date.now();
+  const online = enriched.filter(n => n.online).length;
+  console.log(`[sentinel] Enriched ${enriched.length} plan nodes (${online} online) — countries: ${[...new Set(enriched.map(n => n.country).filter(Boolean))].join(', ') || 'unknown'}`);
+  return enriched;
+}
+
+// Accepts an ISO 3166-1 alpha-2 code ("DE") or a country name ("Germany"),
+// case-insensitive. Codes resolve to English names via Intl.DisplayNames —
+// node /status reports country as a name.
+function countryInputToName(input: string): string {
+  const trimmed = input.trim();
+  if (/^[A-Za-z]{2}$/.test(trimmed)) {
+    try {
+      const name = new Intl.DisplayNames(['en'], { type: 'region' }).of(trimmed.toUpperCase());
+      if (name && name !== trimmed.toUpperCase()) return name;
+    } catch (err) {
+      console.warn(`[sentinel] Could not resolve country code "${trimmed}":`, (err as Error).message);
+    }
+  }
+  return trimmed;
+}
+
+export function matchNodesByCountry(nodes: EnrichedNode[], country: string): EnrichedNode[] {
+  const want = countryInputToName(country).toLowerCase();
+  return nodes.filter(n => {
+    if (!n.online || !n.country) return false;
+    const have = n.country.toLowerCase();
+    return have === want || have.includes(want) || want.includes(have);
+  });
 }
 
 /**
