@@ -8,7 +8,7 @@ The agent signs an EIP-3009 message off-chain. The self-hosted facilitator settl
 
 The agent needs exactly one thing before calling x402: an EVM private key with at least $1.00 USDC on Base (chainId 8453). Everything else — Sentinel wallet, P2P gas, node selection, tunnel keys — is provisioned by x402 or generated locally by `blue-js-sdk/ai-path`.
 
-On a fresh machine with no tunnel binaries, run `await setup()` from `blue-js-sdk/ai-path` once before `connect()`. It auto-downloads V2Ray 5.2.1 to `~/.sentinel-sdk/bin` (no admin rights needed) and detects/auto-installs WireGuard (the Windows MSI install needs admin). It returns `{ ready, capabilities, recommended, issues }` — if `capabilities` includes `v2ray`, you can connect with zero manual installs.
+On a fresh machine with no tunnel binaries, run `await setup()` from `blue-js-sdk/ai-path` once before `connect()`. It auto-downloads V2Ray 5.2.1 to `~/.sentinel-sdk/bin` (no admin rights needed) and detects/auto-installs WireGuard (the Windows MSI install needs admin). It returns `{ ready, capabilities, recommended, issues }` — if `capabilities` includes `v2ray`, you can connect with zero manual installs. For macOS and Linux Sentinel's CLI tool shall be used to connect (ideally, compile it locally): https://github.com/sentinel-official/sentinel-dvpncli
 
 How to fund a fresh EVM key with USDC on Base:
 - **Coinbase / Coinbase CDP**: withdraw USDC and pick "Base" as the network. ~30 seconds, no bridge fee.
