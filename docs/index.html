@@ -54,7 +54,7 @@
       "rpcFallbacks": ["https://rpc.sentinel.co:443", "https://sentinel-rpc.polkachu.com", "https://rpc.mathnodes.com", "https://sentinel-rpc.publicnode.com", "https://rpc.sentinel.quokkastake.io", "https://rpc.sentinel.suchnode.net:443"],
       "lcdFallbacks": ["https://lcd.sentinel.co", "https://sentinel-api.polkachu.com", "https://api.sentinel.quokkastake.io", "https://sentinel-rest.publicnode.com", "https://api.sentinel.suchnode.net"],
       "platforms": "Payment is identical everywhere; only the connect step differs by OS.",
-      "connectMacLinux": "EASIEST. WireGuard ships with the OS. Use native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest): (1) echo \"$MNEMONIC\" | sentinel-dvpncli keys add agent --keyring.backend test; (2) sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test → capture session id; (3) sentinel-dvpncli connect <sessionId>. Exception: Fedora (SELinux blocks VPNs).",
+      "connectMacLinux": "EASIEST. WireGuard ships with the OS. Use native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest): (1) printf '%s\\n\\n' \"$MNEMONIC\" | sentinel-dvpncli keys add agent --keyring.backend test (keys add is interactive: line 1 = mnemonic, blank line 2 = default passphrase; there is no --recover flag); (2) sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test; (3) sessionId = sentinel-dvpncli query sessions --account-addr <sent1...> --subscription-id <subscriptionId> --output-format json (newest entry); (4) sentinel-dvpncli connect <sessionId>. Exception: Fedora (SELinux blocks VPNs).",
       "connectWindows": "Heavier JS path. await setup() from blue-js-sdk/ai-path — run once on a fresh machine; auto-downloads V2Ray (no admin), checks/installs WireGuard (MSI needs admin); returns { ready, capabilities, recommended, issues }",
       "walletCreate": "createWallet() from blue-js-sdk/ai-path → { address, mnemonic }",
       "connect": "Windows JS tunnel: connect({ mnemonic, subscriptionId, feeGranter, nodeAddress }) → { connected, ip, protocol }. On macOS/Linux use connectMacLinux (native CLI) instead.",
@@ -2034,15 +2034,16 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
       </div>
       <pre><code><span class="cm">// Payment (Steps 0-2 above) is identical. macOS &amp; Linux skip the JS connect()</span>
 <span class="cm">// and use Sentinel's native CLI instead &mdash; WireGuard already ships with the OS,</span>
-<span class="cm">// so there's nothing to install for the tunnel. Three flag-driven commands, no prompts.</span>
+<span class="cm">// so there's nothing to install for the tunnel. Four commands, scriptable end to end.</span>
 <span class="cm">// CLI: https://github.com/sentinel-official/sentinel-dvpncli</span>
 
 <span class="cm">// Install once (Go 1.24+):</span>
 <span class="cm">//   go install github.com/sentinel-official/sentinel-dvpncli@latest</span>
 
-<span class="cm">// 1. Import the SAME wallet whose sentinelAddr you sent to x402.</span>
-<span class="cm">//    Mnemonic is read from stdin; --keyring.backend test = non-interactive.</span>
-<span class="kw">echo</span> <span class="str">"$AGENT_MNEMONIC"</span> | sentinel-dvpncli keys add agent --keyring.backend test
+<span class="cm">// 1. Import the SAME wallet whose sentinelAddr (sent1...) you sent to x402.</span>
+<span class="cm">//    keys add is interactive: prompt 1 = mnemonic, prompt 2 = BIP-39 passphrase.</span>
+<span class="cm">//    printf feeds both (mnemonic line + blank line = default empty passphrase).</span>
+<span class="kw">printf</span> <span class="str">'%s\n\n'</span> <span class="str">"$AGENT_MNEMONIC"</span> | sentinel-dvpncli keys add agent --keyring.backend test
 
 <span class="cm">// 2. Start the session against the subscription x402 shared with you.</span>
 <span class="cm">//    --tx.fee-granter-addr = provision.feeGranter &rarr; operator pays the P2P gas (you pay 0).</span>
@@ -2051,9 +2052,14 @@ sentinel-dvpncli tx session-start <span class="str">"$NODE_ADDRESS"</span> \
   --tx.fee-granter-addr <span class="str">"$FEE_GRANTER"</span> \
   --tx.from-name agent --keyring.backend test \
   --rpc.chain-id sentinelhub-2 --output-format json
-<span class="cm">//    &rarr; capture the new session id from the tx result/events</span>
 
-<span class="cm">// 3. Bring the tunnel up (takes the SESSION id, not the subscription id).</span>
+<span class="cm">// 3. Get the session id you just created (session-start does not print it cleanly).</span>
+<span class="cm">//    AGENT_ADDR = the same sent1... you sent to x402. Newest entry is your session.</span>
+SESSION_ID<span class="op">=</span><span class="str">$(</span>sentinel-dvpncli query sessions \
+  --account-addr <span class="str">"$AGENT_ADDR"</span> --subscription-id <span class="str">"$SUBSCRIPTION_ID"</span> \
+  --output-format json | jq <span class="str">'.result[-1].id // .response[-1].id'</span><span class="str">)</span>
+
+<span class="cm">// 4. Bring the tunnel up (takes the SESSION id, not the subscription id).</span>
 <span class="cm">//    WireGuard may need sudo to create the interface, same as any wg client.</span>
 sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
 <span class="cm">// &rarr; tunnel up. Tear down with: sentinel-dvpncli tx session-cancel "$SESSION_ID"</span>
@@ -2381,7 +2387,9 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
 
 <span class="cm">// ── Step 5: Connect to VPN (0 gas, 0 P2P) ──</span>
 <span class="cm">// This connect() is the Windows path. On macOS/Linux (easiest) use the native CLI instead:</span>
+<span class="cm">//   printf '%s\n\n' "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test</span>
 <span class="cm">//   sentinel-dvpncli tx session-start &lt;nodeAddress&gt; --subscription-id &lt;id&gt; --tx.fee-granter-addr &lt;feeGranter&gt; --tx.from-name agent --keyring.backend test</span>
+<span class="cm">//   sessionId=$(sentinel-dvpncli query sessions --account-addr &lt;sent1...&gt; --subscription-id &lt;id&gt; --output-format json | jq '.result[-1].id')</span>
 <span class="cm">//   sentinel-dvpncli connect &lt;sessionId&gt;   (WireGuard ships with the OS; nothing to install)</span>
 <span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
   <span class="prop">mnemonic</span><span class="op">:</span> wallet<span class="op">.</span>mnemonic<span class="op">,</span>

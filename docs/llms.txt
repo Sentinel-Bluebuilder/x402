@@ -59,7 +59,7 @@ Free:
 6. Server submits atomic `MsgShareSubscription` + `MsgGrantAllowance` on Sentinel.
 7. Server returns 200 `{ provisioned, subscriptionId, planId, feeGranter, nodeAddress, nodeCountry, nodes[], sentinelTxHash, expiresAt }`.
 8. Agent connects, using the path for its OS (both consume the same 200 fields):
-   - **macOS/Linux:** `sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name <key>` → note the returned session id → `sentinel-dvpncli connect <sessionId>`. (See "macOS & Linux — native CLI connect".)
+   - **macOS/Linux:** import the key (`printf '%s\n\n' "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test`), `sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test`, resolve the new id with `sentinel-dvpncli query sessions --account-addr <sent1...> --subscription-id <subscriptionId> --output-format json` (newest entry), then `sentinel-dvpncli connect <sessionId>`. (See "macOS & Linux — native CLI connect".)
    - **Windows:** `setup()` once on a fresh machine, then `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`. (See "Windows — JS-SDK connect".)
 9. `MsgStartSession` on Sentinel — gas paid by `feeGranter` (the fee grant the server created in step 6, so the agent's session start costs zero P2P).
 10. Direct WireGuard/V2Ray handshake — tunnel up. The operator never sees it.
@@ -130,8 +130,11 @@ sentinel-dvpncli version
 
 ```bash
 # 1. Import the SAME wallet whose sentinelAddr (sent1...) you sent to x402.
-#    The mnemonic is read from stdin; --keyring.backend test makes it non-interactive (no OS keychain prompt).
-echo "$AGENT_MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test
+#    `keys add` is INTERACTIVE — there is NO --recover flag. It prompts for the mnemonic,
+#    then a BIP-39 passphrase. Feed BOTH from stdin: line 1 = mnemonic, blank line 2 = default
+#    (empty) passphrase. A single-line echo would hang on the passphrase prompt.
+#    --keyring.backend test makes it non-interactive for the OS keychain (no keychain prompt).
+printf '%s\n\n' "$AGENT_MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test
 #    (keyring.backend defaults to "os"; use "test" or "file" for scripted/agent use.)
 
 # 2. Start the session against the subscription x402 shared with you.
@@ -144,9 +147,16 @@ sentinel-dvpncli tx session-start "$NODE_ADDRESS" \
   --keyring.backend test \
   --rpc.chain-id sentinelhub-2 \
   --output-format json
-#    Capture the session id from the tx result / events (it is the session just created on-chain).
 
-# 3. Bring the tunnel up. Takes the SESSION id (not the subscription id).
+# 3. Resolve the session id you just created. `tx session-start` prints {response, result}
+#    but does NOT surface the new id as a clean field, so query it back: filter sessions by
+#    YOUR account + the subscription and take the newest. AGENT_ADDR = your sent1... address.
+SESSION_ID=$(sentinel-dvpncli query sessions \
+  --account-addr "$AGENT_ADDR" --subscription-id "$SUBSCRIPTION_ID" \
+  --output-format json | jq '.result[-1].id // .response[-1].id')
+
+# 4. Bring the tunnel up. Takes the SESSION id (not the subscription id). No key needed —
+#    connect only queries the session on-chain and builds the tunnel.
 #    WireGuard nodes may need sudo to create the interface — same as any wg client.
 sentinel-dvpncli connect "$SESSION_ID"
 ```
