@@ -70,7 +70,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Funnel+Display:wght@300..800&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
 <style>
 /* ─── Reset & Variables ─── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -114,7 +114,7 @@
   --red: #ff5d6c;
 
   --font-body: 'Lato', -apple-system, sans-serif;
-  --font-display: 'Lato', -apple-system, sans-serif;
+  --font-display: 'Funnel Display', 'Lato', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
   --radius: 8px;
   --radius-lg: 12px;
@@ -307,7 +307,7 @@ nav .logo span { color: var(--accent); text-shadow: 0 0 14px rgba(0, 170, 255, 0
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  margin: 22px auto 8px;
+  margin: 14px auto 6px;
   align-items: stretch;
   justify-content: center;
 }
@@ -316,8 +316,8 @@ nav .logo span { color: var(--accent); text-shadow: 0 0 14px rgba(0, 170, 255, 0
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px;
-  height: 38px;
+  padding: 7px 14px;
+  height: 34px;
   line-height: 1;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -405,7 +405,7 @@ nav .links a:hover::after { right: 0; }
 
 /* ─── Hero ─── */
 .hero {
-  padding: 116px 0 92px;
+  padding: 52px 0 48px;
   text-align: center;
   position: relative;
 }
@@ -432,12 +432,12 @@ nav .links a:hover::after { right: 0; }
   border-radius: 100px;
   border: 1px solid var(--border-bright);
   background: var(--accent-subtle);
-  font-size: 10.5px;
-  font-weight: 600;
-  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-body);
   color: var(--accent-bright);
   letter-spacing: 1.6px;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   text-transform: uppercase;
   box-shadow: 0 0 16px -6px var(--accent-glow);
 }
@@ -458,11 +458,11 @@ nav .links a:hover::after { right: 0; }
 
 .hero h1 {
   font-family: var(--font-display);
-  font-size: clamp(40px, 6vw, 66px);
+  font-size: clamp(34px, 5vw, 50px);
   font-weight: 800;
   line-height: 1.02;
-  letter-spacing: -2.4px;
-  margin-bottom: 24px;
+  letter-spacing: -1.8px;
+  margin-bottom: 16px;
   color: var(--text-bright);
   text-wrap: balance;
 }
@@ -492,18 +492,18 @@ nav .links a:hover::after { right: 0; }
 
 .hero .subtitle {
   font-family: var(--font-body);
-  font-size: 17px;
+  font-size: 15.5px;
   color: var(--text-muted);
   max-width: 580px;
-  margin: 0 auto 14px;
+  margin: 0 auto 10px;
   line-height: 1.6;
 }
 
 .hero .subtitle.warn {
-  font-size: 13.5px;
+  font-size: 12.5px;
   color: var(--amber);
-  margin-top: 6px;
-  margin-bottom: 38px;
+  margin-top: 4px;
+  margin-bottom: 20px;
 }
 
 .hero .code-preview {
@@ -607,7 +607,7 @@ nav .links a:hover::after { right: 0; }
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 18px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(0, 170, 255, 0.05), rgba(0, 170, 255, 0.015));
 }
@@ -639,7 +639,7 @@ nav .links a:hover::after { right: 0; }
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 14px 18px;
+  padding: 9px 16px;
   transition: background 0.2s cubic-bezier(.22, .61, .36, 1);
 }
 
@@ -1375,7 +1375,7 @@ section h3 {
   nav .links { gap: 14px; }
   nav .links a { font-size: 11.5px; }
   section h2 { font-size: 24px; }
-  .hero { padding: 80px 0 60px; }
+  .hero { padding: 44px 0 40px; }
   #rain { opacity: 0.18; }
 }
 
