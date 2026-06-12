@@ -295,9 +295,9 @@ app.get('/manifest', (_req, res) => {
     description: 'Pay USDC, get a Sentinel dVPN subscription. One HTTP request, one EIP-3009 signature.',
     tldr: [
       'You need: (a) an EVM wallet with USDC on Base, (b) a Sentinel wallet from `createWallet()` in `blue-js-sdk/ai-path`.',
-      'Fresh machine? Run `await setup()` from `blue-js-sdk/ai-path` first — it auto-downloads V2Ray (no admin needed) and checks WireGuard, so you never need to install a tunnel binary by hand.',
-      `POST ${network === 'eip155:8453' ? 'https://x402.sentinel.co' : '/'}/vpn/connect/30days with { sentinelAddr } using @x402/fetch to auto-sign the 402. Add { country: "DE" } to get a node in a specific country (GET /nodes lists what is available).`,
-      'Take { subscriptionId, feeGranter, nodeAddress } from the 200 response and pass them to `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`.',
+      `POST ${network === 'eip155:8453' ? 'https://x402.sentinel.co' : '/'}/vpn/connect/30days with { sentinelAddr } using @x402/fetch to auto-sign the 402. Add { country: "DE" } to get a node in a specific country (GET /nodes lists what is available). Payment is identical on every OS.`,
+      'Connecting differs by OS. macOS & Linux (easiest): WireGuard ships with the OS — use the native CLI `sentinel-dvpncli` (go install github.com/sentinel-official/sentinel-dvpncli@latest), then `keys add` your mnemonic, `tx session-start <nodeAddress> --subscription-id <id> --tx.fee-granter-addr <feeGranter>`, and `connect <sessionId>`. See sentinel.connectMacLinux. Only Fedora is unsupported (SELinux blocks VPNs).',
+      'Windows (heavier): run `await setup()` from `blue-js-sdk/ai-path` first — it auto-downloads V2Ray (no admin) and installs WireGuard — then `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`. See sentinel.connectWindows.',
       'Tunnel is up. You paid $1.00 USDC, zero gas on Base, zero gas on Sentinel.',
     ],
     network: {
@@ -442,7 +442,7 @@ app.get('/manifest', (_req, res) => {
       { step: 5, actor: 'facilitator', action: 'Settle USDC on Base (~2s)' },
       { step: 6, actor: 'server', action: 'Atomic MsgShareSubscription + MsgGrantAllowance on Sentinel' },
       { step: 7, actor: 'server', action: 'Respond 200 with subscriptionId, feeGranter, nodeAddress' },
-      { step: 8, actor: 'agent', action: 'Run setup() once on a fresh machine (auto-installs V2Ray), then connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })' },
+      { step: 8, actor: 'agent', action: 'Connect (OS-specific, same 200 fields). macOS/Linux: sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <id> --tx.fee-granter-addr <feeGranter> --tx.from-name agent, then connect <sessionId>. Windows: setup() once, then connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })' },
       { step: 9, actor: 'agent', action: 'MsgStartSession (gas paid by operator via fee grant)' },
       { step: 10, actor: 'agent', action: 'Direct WireGuard/V2Ray handshake with node — tunnel up' },
     ],
@@ -504,6 +504,7 @@ app.get('/manifest', (_req, res) => {
       setup: {
         package: 'blue-js-sdk/ai-path',
         fn: 'await setup()',
+        platform: 'Windows connect path only. macOS/Linux do not need setup() — use connectMacLinux (native CLI) instead.',
         note: 'Run once on a fresh machine BEFORE connect(). Auto-downloads V2Ray 5.2.1 to ~/.sentinel-sdk/bin (no admin rights needed) and detects/auto-installs WireGuard (Windows MSI install needs admin). Returns { ready, capabilities, recommended, issues }. If capabilities includes "v2ray" you can connect with zero manual installs.',
       },
       walletCreate: {
@@ -512,8 +513,23 @@ app.get('/manifest', (_req, res) => {
         returns: { address: 'sent1... (use this as sentinelAddr)', mnemonic: 'string (persist this)' },
         note: 'Generate once per agent. The address goes in the request body; the mnemonic signs MsgStartSession.',
       },
+      platforms: 'Payment is identical on every OS; only the connect step differs. macOS & Linux are the easiest path (native CLI, WireGuard ships with the OS — see connectMacLinux). Windows uses the heavier JS-SDK path (see connectWindows / connect). Only Fedora is unsupported: its SELinux blocks VPN interfaces and cannot be bypassed programmatically.',
+      connectMacLinux: {
+        tool: 'sentinel-dvpncli',
+        install: 'go install github.com/sentinel-official/sentinel-dvpncli@latest (Go 1.24+); binary lands in $(go env GOPATH)/bin',
+        why: 'Easiest path — WireGuard ships with macOS and mainstream Linux, so nothing to install for the tunnel. Flag-driven, non-interactive.',
+        steps: [
+          'keys add: echo "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test  (import the SAME wallet whose sentinelAddr you sent to x402)',
+          'session-start: sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test --rpc.chain-id sentinelhub-2 --output-format json  (operator fee-grants the gas; capture the session id from the tx events)',
+          'connect: sentinel-dvpncli connect <sessionId>  (WireGuard nodes may need sudo to bring the interface up)',
+        ],
+        teardown: 'sentinel-dvpncli tx session-cancel <sessionId>',
+        defaults: '--rpc.addrs https://rpc.sentinel.co:443, --rpc.chain-id sentinelhub-2, --keyring.name sentinel',
+        fedora: 'Not supported on Fedora — SELinux blocks VPN interfaces. macOS, Ubuntu, Debian, Arch and other mainstream distros work out of the box.',
+      },
       connect: {
         package: 'blue-js-sdk/ai-path',
+        platform: 'Windows path (JS tunnel). On macOS/Linux use connectMacLinux (native CLI) instead.',
         fn: 'connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })',
         argsFrom: 'Pass response.success fields directly. mnemonic is the one from createWallet().',
         returns: { connected: 'boolean', ip: 'string', protocol: 'wireguard | v2ray' },
@@ -521,7 +537,8 @@ app.get('/manifest', (_req, res) => {
       },
       disconnect: {
         package: 'blue-js-sdk/ai-path',
-        fn: 'disconnect()',
+        fn: 'disconnect()  (Windows JS path)',
+        cli: 'macOS/Linux: sentinel-dvpncli tx session-cancel <sessionId>',
         note: 'Ends the session on-chain (also fee-granted) and tears down the tunnel.',
       },
       errors: {
