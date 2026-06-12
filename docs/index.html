@@ -70,7 +70,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Funnel+Display:wght@300..800&family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
 <style>
 /* ─── Reset & Variables ─── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -113,7 +113,8 @@
   --amber-dim: rgba(255, 181, 71, 0.12);
   --red: #ff5d6c;
 
-  --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-body: 'Lato', -apple-system, sans-serif;
+  --font-display: 'Funnel Display', 'Lato', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
   --radius: 8px;
   --radius-lg: 12px;
@@ -456,7 +457,7 @@ nav .links a:hover::after { right: 0; }
 }
 
 .hero h1 {
-  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(40px, 6vw, 66px);
   font-weight: 800;
   line-height: 1.02;
@@ -572,138 +573,6 @@ nav .links a:hover::after { right: 0; }
 .code-block .prop { color: #d4f1ff; }
 .code-block .op   { color: #5bcfff; }
 
-/* ─── Hero Use-Case Panel ─── */
-.hero .use-cases {
-  max-width: 620px;
-  margin: 0 auto;
-  text-align: left;
-}
-
-.uc-panel {
-  background:
-    linear-gradient(180deg, rgba(0, 170, 255, 0.025), transparent 60%),
-    var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 0 0 1px rgba(0, 170, 255, 0.06), 0 24px 60px -30px rgba(0, 0, 0, 0.9);
-  position: relative;
-}
-
-.uc-panel::before {
-  /* faint phosphor edge glow, matching .code-block */
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-lg);
-  pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgba(0, 170, 255, 0.05), inset 0 0 24px -8px rgba(0, 170, 255, 0.18);
-}
-
-.uc-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 18px;
-  border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(0, 170, 255, 0.05), rgba(0, 170, 255, 0.015));
-}
-
-.uc-head .uc-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent-glow);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.uc-head .uc-overline {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.uc-head .uc-count {
-  margin-left: auto;
-  font-size: 10.5px;
-  color: var(--text-dim);
-  letter-spacing: 1px;
-}
-
-.uc-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 14px 18px;
-  transition: background 0.2s cubic-bezier(.22, .61, .36, 1);
-}
-
-.uc-row + .uc-row { border-top: 1px solid var(--border); }
-
-.uc-row:hover { background: var(--accent-subtle); }
-
-.uc-row:hover .uc-icon {
-  border-color: var(--border-strong);
-  box-shadow: 0 0 18px -4px var(--accent-glow);
-  transform: translateY(-1px);
-}
-
-.uc-icon {
-  width: 34px; height: 34px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 2px;
-  border-radius: 9px;
-  border: 1px solid var(--border-bright);
-  background: var(--accent-subtle);
-  color: var(--accent);
-  filter: drop-shadow(0 0 6px rgba(0, 170, 255, 0.25));
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s cubic-bezier(.22, .61, .36, 1);
-}
-
-.uc-icon svg { width: 17px; height: 17px; display: block; }
-
-.uc-text {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.uc-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-bright);
-  letter-spacing: 0.2px;
-  line-height: 1.4;
-}
-
-.uc-desc {
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.55;
-}
-
-.uc-num {
-  margin-left: auto;
-  flex-shrink: 0;
-  padding-top: 2px;
-  font-size: 10.5px;
-  color: var(--text-dim);
-  letter-spacing: 1px;
-}
-
-@media (max-width: 560px) {
-  .uc-num { display: none; }
-}
-
 /* ─── Sections ─── */
 section { padding: 84px 0; position: relative; scroll-margin-top: 64px; }
 
@@ -727,7 +596,7 @@ section .section-label::before {
 }
 
 section h2 {
-  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  font-family: var(--font-display);
   font-size: clamp(26px, 3.6vw, 34px);
   font-weight: 700;
   letter-spacing: -1.1px;
@@ -916,7 +785,7 @@ footer p code {
 }
 
 .flow-step .step-content h4 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
   color: var(--text-bright);
@@ -1032,7 +901,7 @@ footer p code {
 .path-card.active::before { opacity: 0.5; }
 
 .chain-card .chain-name {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-display);
   font-size: 20px;
   font-weight: 700;
   color: var(--text-bright);
@@ -1210,7 +1079,7 @@ footer a:hover { color: var(--accent); }
 }
 
 .path-card h3 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-display);
   font-size: 17px;
   font-weight: 700;
   color: var(--text-bright);
@@ -1414,7 +1283,7 @@ section h3 {
     <div class="protocol-badge fade-in">
       <img src="assets/sentinel-shield.png" alt="" style="width:16px;height:16px;object-fit:contain;display:inline-block;vertical-align:middle;filter:drop-shadow(0 0 4px rgba(30,136,229,0.5));">
 
-      Live on Base Mainnet &middot; Sentinel dVPN
+      Live on Base Mainnet
     </div>
     <h1 class="fade-in">Private internet<br>for <span class="highlight">AI agents</span><span class="caret"></span></h1>
     <p class="subtitle fade-in">AI agents pay USDC on Base over HTTP 402 and get private VPN access through Sentinel's decentralized node network. One request, one signature, connected. No KYC. No accounts. Everything on-chain.</p>
@@ -1442,63 +1311,19 @@ section h3 {
 
     <p class="subtitle warn fade-in">Currently verified on Windows only. Requires admin privileges for WireGuard. macOS and Linux support is built but untested.</p>
 
-    <div class="use-cases fade-in">
-      <div class="uc-panel">
-        <div class="uc-head">
-          <span class="uc-dot"></span>
-          <span class="uc-overline">agent dVPN &mdash; use cases</span>
-          <span class="uc-count">05</span>
+    <div class="code-preview fade-in">
+      <div class="code-block">
+        <div class="bar">
+          <div class="label">agent dVPN &mdash; use cases</div>
         </div>
-        <div class="uc-row">
-          <span class="uc-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 10.6a2.4 2.4 0 0 0 3.4 3.4"/><path d="M9.9 5.2A10 10 0 0 1 12 5c4.5 0 8.2 2.9 9.5 7a10.6 10.6 0 0 1-2.8 4.3"/><path d="M6.2 6.2A10.5 10.5 0 0 0 2.5 12c1.3 4.1 5 7 9.5 7 1.2 0 2.4-.2 3.5-.6"/></svg>
-          </span>
-          <span class="uc-text">
-            <span class="uc-title">Agent privacy</span>
-            <span class="uc-desc">Mask the agent's IP &mdash; no request traces back to its operator.</span>
-          </span>
-          <span class="uc-num">01</span>
-        </div>
-        <div class="uc-row">
-          <span class="uc-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v3M7 15v5"/><rect x="5" y="7" width="4" height="8" rx="1"/><path d="M17 4v5M17 17v3"/><rect x="15" y="9" width="4" height="8" rx="1"/></svg>
-          </span>
-          <span class="uc-text">
-            <span class="uc-title">Geo-restricted exchanges</span>
-            <span class="uc-desc">Trade on Hyperliquid and region-locked venues from anywhere.</span>
-          </span>
-          <span class="uc-num">02</span>
-        </div>
-        <div class="uc-row">
-          <span class="uc-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a13.5 13.5 0 0 1 0 18a13.5 13.5 0 0 1 0-18"/></svg>
-          </span>
-          <span class="uc-text">
-            <span class="uc-title">Geo-locked APIs &amp; data</span>
-            <span class="uc-desc">Fetch sources only served in certain countries.</span>
-          </span>
-          <span class="uc-num">03</span>
-        </div>
-        <div class="uc-row">
-          <span class="uc-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
-          </span>
-          <span class="uc-text">
-            <span class="uc-title">Anonymity at scale</span>
-            <span class="uc-desc">Rotate exits across 700+ nodes to dodge IP bans and rate limits.</span>
-          </span>
-          <span class="uc-num">04</span>
-        </div>
-        <div class="uc-row">
-          <span class="uc-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 1.9 9.6"/><path d="M8 12h2.5M13.5 12H16"/></svg>
-          </span>
-          <span class="uc-text">
-            <span class="uc-title">Censorship resistance</span>
-            <span class="uc-desc">Reach the open internet from blocked networks.</span>
-          </span>
-          <span class="uc-num">05</span>
-        </div>
+        <pre><code><span class="cm">// What AI agents use the dVPN for</span>
+<span class="kw">const</span> useCases <span class="op">=</span> [
+  <span class="str">'Privacy &mdash; mask the agent IP, no request traces back to its operator'</span><span class="op">,</span>
+  <span class="str">'Geo-restricted exchanges &mdash; trade on Hyperliquid &amp; region-locked venues'</span><span class="op">,</span>
+  <span class="str">'Geo-locked APIs &amp; data &mdash; fetch sources only served in certain countries'</span><span class="op">,</span>
+  <span class="str">'Anonymity at scale &mdash; rotate exits across 700+ nodes to avoid IP bans'</span><span class="op">,</span>
+  <span class="str">'Censorship resistance &mdash; reach the open internet from blocked networks'</span><span class="op">,</span>
+]<span class="op">;</span></code></pre>
       </div>
     </div>
   </div>
