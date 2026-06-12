@@ -343,6 +343,9 @@ nav .logo span { color: var(--accent); text-shadow: 0 0 14px rgba(0, 170, 255, 0
 .os-chip.soon { color: var(--amber); border-color: rgba(255, 181, 71, 0.32); }
 .os-chip.soon .os-logo { color: var(--amber); filter: drop-shadow(0 0 6px rgba(255, 181, 71, 0.32)); }
 
+.os-chip.cli { color: var(--accent); border-color: rgba(0, 170, 255, 0.32); }
+.os-chip.cli .os-logo { color: var(--accent); filter: drop-shadow(0 0 6px rgba(0, 170, 255, 0.3)); }
+
 .os-chip .os-label {
   display: inline-flex;
   align-items: baseline;
@@ -1548,21 +1551,21 @@ section h3 {
         </span>
         <span class="os-label">Windows <span class="os-status">live</span></span>
       </div>
-      <div class="os-chip soon" title="Built but untested">
+      <div class="os-chip cli" title="Connect via Sentinel's CLI tool">
         <span class="os-logo" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 1.3c.1 1.1-.3 2.2-1 3-.6.8-1.7 1.4-2.7 1.4-.2-1.1.3-2.2.9-2.9.8-.9 2-1.5 2.8-1.5Zm3.6 16.4c-.5 1.2-.8 1.7-1.4 2.8-.9 1.5-2.2 3.4-3.9 3.5-1.5 0-1.8-.9-3.8-.9-1.9 0-2.3.9-3.8.9-1.6-.1-2.9-1.8-3.8-3.3-2.5-4.3-2.7-9.4-1.2-12.1 1.1-1.9 2.8-3.1 4.4-3.1 1.5 0 2.5.9 3.8.9 1.3 0 2.1-.9 3.9-.9 1.4 0 3 .8 4.1 2.2-3.6 2-3 7.2 1.7 10Z"/></svg>
         </span>
-        <span class="os-label">macOS <span class="os-status">soon</span></span>
+        <span class="os-label">macOS <span class="os-status">CLI</span></span>
       </div>
-      <div class="os-chip soon" title="Built but untested">
+      <div class="os-chip cli" title="Connect via Sentinel's CLI tool">
         <span class="os-logo" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 2c-2 0-3.3 1.6-3.3 4 0 1 .2 1.9.4 2.5-.7.5-1.3 1.4-1.8 2.6-.7 1.6-1 3.8-1.7 5.2-.5 1-1.5 1.5-2 2.2-.4.4-.5 1.3.4 1.6.7.2 1.3-.2 1.9-.6.4-.3.9-.4 1.2-.4.4.1.5.5.6 1 .1 1.3 1 2.2 2.9 2.4 1.8.2 4-.4 5.7-.4 1 0 1.7.1 2.3.1.6 0 1-.5 1-1 0-.5-.4-.9-.9-1.3-1.1-1-1.4-2.3-1.8-4-.4-1.6-.9-3.5-2.3-4.7.4-.8.6-1.7.6-2.7 0-2.3-1.3-4-3.2-4Zm-1 3.3c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Zm2.1 0c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Z"/></svg>
         </span>
-        <span class="os-label">Linux <span class="os-status">soon</span></span>
+        <span class="os-label">Linux <span class="os-status">CLI</span></span>
       </div>
     </div>
 
-    <p class="subtitle warn fade-in">Currently verified on Windows only. Requires admin privileges for WireGuard. macOS and Linux support is built but untested.</p>
+    <p class="subtitle warn fade-in">The JS SDK tunnel is verified on Windows (WireGuard needs admin). On macOS and Linux, connect with Sentinel's CLI tool &mdash; ideally compiled locally: <a href="https://github.com/sentinel-official/sentinel-dvpncli" target="_blank" rel="noopener">sentinel-dvpncli</a>. The payment + provisioning flow (x402 &rarr; subscription + fee grant) is identical on every platform.</p>
 
     <div class="use-cases fade-in">
       <div class="uc-panel">
