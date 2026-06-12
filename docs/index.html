@@ -405,7 +405,11 @@ nav .links a:hover::after { right: 0; }
 
 /* ─── Hero ─── */
 .hero {
-  padding: 52px 0 48px;
+  min-height: calc(100vh - 56px);
+  padding: 36px 0 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   text-align: center;
   position: relative;
 }
@@ -709,22 +713,29 @@ nav .links a:hover::after { right: 0; }
 section { padding: 84px 0; position: relative; scroll-margin-top: 64px; }
 
 section .section-label {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-family: var(--font-body);
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 3px;
+  letter-spacing: 2.2px;
   text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 12px;
+  color: var(--accent-bright);
+  margin-bottom: 14px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  padding: 5px 13px;
+  border: 1px solid var(--border-bright);
+  border-radius: 100px;
+  background: var(--accent-subtle);
+  box-shadow: 0 0 16px -6px var(--accent-glow);
 }
 
 section .section-label::before {
-  content: '//';
-  color: var(--text-dim);
-  letter-spacing: 0;
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
 }
 
 section h2 {
@@ -932,18 +943,30 @@ footer p code {
 }
 
 .flow-step .step-content .tag {
-  display: inline-block;
-  font-family: var(--font-mono);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-body);
   font-size: 10.5px;
   font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 4px;
-  margin-top: 10px;
-  letter-spacing: 1px;
+  padding: 4px 12px;
+  border-radius: 100px;
+  margin-top: 12px;
+  letter-spacing: 1.6px;
   text-transform: uppercase;
 }
 
-.tag-agent   { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--border-bright); }
+.flow-step .step-content .tag::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+  flex-shrink: 0;
+}
+
+.tag-agent   { background: var(--accent-dim); color: var(--accent-bright); border: 1px solid var(--border-bright); }
 .tag-backend { background: var(--blue-dim); color: var(--accent-bright); border: 1px solid var(--border-bright); }
 .tag-chain   { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(255, 181, 71, 0.3); }
 
