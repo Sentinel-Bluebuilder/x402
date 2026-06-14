@@ -1365,6 +1365,52 @@ footer a:hover { color: var(--accent); }
 
 .current-note strong { color: var(--accent); }
 
+/* ─── Callout (inline notes inside code sections) ─── */
+.callout {
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  background: var(--accent-subtle);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.62;
+  color: var(--text-muted);
+}
+.callout .callout-title {
+  font-family: var(--font-mono, var(--font-body));
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-bright);
+  margin-bottom: 7px;
+}
+.callout p { margin: 0; }
+.callout code {
+  color: var(--accent-bright);
+  font-size: 0.92em;
+}
+.callout strong, .callout em { color: var(--text-bright); }
+.callout em { font-style: normal; }
+/* amber warn variant */
+.callout-warn {
+  border-color: rgba(255, 184, 77, 0.22);
+  border-left-color: #ffb84d;
+  background: rgba(255, 184, 77, 0.06);
+}
+.callout-warn .callout-title { color: #ffce80; }
+.callout-warn code { color: #ffce80; }
+.callout-warn strong, .callout-warn em { color: #ffe0b0; }
+/* ok / verified variant */
+.callout-ok {
+  border-color: rgba(64, 224, 160, 0.22);
+  border-left-color: #40e0a0;
+  background: rgba(64, 224, 160, 0.06);
+}
+.callout-ok .callout-title { color: #7ff0c4; }
+.callout-ok code { color: #7ff0c4; }
+.callout-ok strong, .callout-ok em { color: #b0f5dc; }
+
 /* ─── MEXC banner (autonomous-path on-ramp) ─── */
 .mexc-banner {
   display: flex;
@@ -1761,9 +1807,9 @@ section h3 {
           <li>Full control &mdash; no middleman, no plan needed</li>
         </ul>
         <div class="path-traits">
-          <div class="path-trait"><span class="label">Gas</span><span class="val">Agent pays (~0.01 P2P/tx)</span></div>
-          <div class="path-trait"><span class="label">Node choice</span><span class="val">Any Sentinel node</span></div>
-          <div class="path-trait"><span class="label">Pricing</span><span class="val">Node's posted rate (per GB / per hour)</span></div>
+          <div class="path-trait"><span class="label">Gas</span><span class="val">Agent pays &mdash; bundled into the session TX</span></div>
+          <div class="path-trait"><span class="label">Node choice</span><span class="val">Any Sentinel node (auto-pick by country, or pin one)</span></div>
+          <div class="path-trait"><span class="label">Pricing</span><span class="val">Node's posted rate &mdash; ~40 P2P/GB median, from ~2 P2P</span></div>
           <div class="path-trait"><span class="label">Trust</span><span class="val">Zero &mdash; agent controls everything</span></div>
         </div>
       </div>
@@ -1833,7 +1879,12 @@ section h3 {
   <div class="container">
     <div class="section-label">The Autonomous Path</div>
     <h2>Fully autonomous &mdash; no x402 involved</h2>
-    <p class="desc">A separate path for agents that want zero intermediaries. The agent holds its own P2P tokens, pays Sentinel nodes directly at their posted per-gigabyte or per-hour rates, and manages its own gas. The x402 server plays no part in this flow.</p>
+    <p class="desc">A separate path for agents that want zero intermediaries. The agent holds its own P2P tokens, picks any node on the network, pays it directly at its posted per-gigabyte or per-hour rate, and manages its own gas. The x402 server plays no part &mdash; no operator, no fee-grant, no subscription. One call: <code>connect()</code> from <code>blue-js-sdk/ai-path</code>.</p>
+
+    <div class="callout callout-ok" style="max-width: 760px; margin: 0 auto 36px;">
+      <div class="callout-title">&#10003; Verified live on mainnet</div>
+      <p>A funded test agent ran this end-to-end with no operator in the loop: it picked a US node, opened on-chain session <code>45433200</code>, paid <strong>40.19&nbsp;P2P</strong> for a 1&nbsp;GB V2Ray session, and the SDK confirmed the exit IP <code>104.252.19.187</code> through the tunnel &mdash; ~67&nbsp;s start to finish. That 40&nbsp;P2P is the live network median; the cheapest nodes run ~2&nbsp;P2P/GB.</p>
+    </div>
 
     <div class="flow-steps">
       <div class="flow-step">
@@ -1849,7 +1900,7 @@ section h3 {
         <div class="step-num">1</div>
         <div class="step-content">
           <h4>Own wallet, own keys</h4>
-          <p>Agent creates a Sentinel wallet and holds the mnemonic itself. It pays its own gas (~0.01 P2P per transaction) from the P2P it bought in step zero.</p>
+          <p>Agent creates a Sentinel wallet and holds the mnemonic itself &mdash; the keys never leave the agent. It pays its own gas, bundled into the session transaction, from the P2P it bought in step zero.</p>
           <span class="tag tag-agent">Agent</span>
         </div>
       </div>
@@ -1858,7 +1909,7 @@ section h3 {
         <div class="step-num">2</div>
         <div class="step-content">
           <h4>Pick any node on the network</h4>
-          <p>Agent queries the live Sentinel node list and picks by country, speed, and price. Every node posts its own <strong>per-gigabyte</strong> and <strong>per-hour</strong> rates &mdash; the agent pays exactly that, no plan, no subscription tier.</p>
+          <p>Agent queries the live node list and picks by country, speed, and price &mdash; or passes <code>country</code> and lets the SDK auto-select the best one. Every node posts its own <strong>per-gigabyte</strong> and <strong>per-hour</strong> rates (median ~40&nbsp;P2P/GB, from ~2&nbsp;P2P on the cheapest); the agent pays exactly that, no plan, no tier.</p>
           <span class="tag tag-agent">Agent &rarr; Chain</span>
         </div>
       </div>
@@ -1867,7 +1918,7 @@ section h3 {
         <div class="step-num">3</div>
         <div class="step-content">
           <h4>Pay the node, handshake directly</h4>
-          <p>Agent starts the session and pays the node in P2P at its posted rate, then handshakes directly over WireGuard/V2Ray. No middleman in the payment or the tunnel &mdash; the x402 server is never contacted.</p>
+          <p>Agent starts the session, pays the node in P2P at its posted rate, then handshakes directly over WireGuard (full system route) or V2Ray (zero-admin SOCKS5 proxy). No middleman in the payment or the tunnel &mdash; the x402 server is never contacted. <code>connect()</code> registers cleanup handlers, so a crashed process never strands the tunnel.</p>
           <span class="tag tag-agent">Agent &harr; Node</span>
         </div>
       </div>
@@ -2159,45 +2210,61 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
 
     <div class="code-block" style="margin-bottom: 24px;">
       <div class="bar">
-        <div class="label">Connect to VPN &mdash; agent pays node directly</div>
+        <div class="label">Connect to VPN &mdash; agent pays the node directly</div>
       </div>
-      <pre><code><span class="kw">import</span> { <span class="fn">createWallet</span>, <span class="fn">connectDirect</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk'</span><span class="op">;</span>
+      <pre><code><span class="kw">import</span> { <span class="fn">connect</span>, <span class="fn">disconnect</span>, <span class="fn">getBalance</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk/ai-path'</span><span class="op">;</span>
 
-<span class="cm">// Agent already holds P2P tokens (bought on MEXC by API &mdash; see Autonomous Path above)</span>
-<span class="kw">const</span> { wallet } <span class="op">=</span> <span class="kw">await</span> <span class="fn">createWallet</span>(process<span class="op">.</span>env<span class="op">.</span>SENTINEL_MNEMONIC)<span class="op">;</span>
+<span class="cm">// Agent already holds P2P (bought on MEXC by API &mdash; see Autonomous Path above).</span>
+<span class="cm">// getBalance &rarr; { address, udvpn, p2p, sufficient }</span>
+<span class="kw">const</span> bal <span class="op">=</span> <span class="kw">await</span> <span class="fn">getBalance</span>(process<span class="op">.</span>env<span class="op">.</span>SENTINEL_MNEMONIC)<span class="op">;</span>
 
-<span class="cm">// Pick any Sentinel node &mdash; pay directly in P2P, full autonomy</span>
-<span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connectDirect</span>({
-  wallet<span class="op">,</span>
-  <span class="prop">country</span><span class="op">:</span> <span class="str">'US'</span><span class="op">,</span>
-  <span class="prop">protocol</span><span class="op">:</span> <span class="str">'wireguard'</span><span class="op">,</span>
+<span class="cm">// Pick any Sentinel node and pay it directly in P2P. No x402, no operator.</span>
+<span class="cm">// protocol: 'v2ray' = zero admin on Windows; the binary auto-downloads (~70% of nodes).</span>
+<span class="cm">// Omit country to let the SDK pick the best node anywhere; pass nodeAddress to pin one.</span>
+<span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
+  <span class="prop">mnemonic</span><span class="op">:</span> process<span class="op">.</span>env<span class="op">.</span>SENTINEL_MNEMONIC<span class="op">,</span>  <span class="cm">// agent holds its own keys</span>
+  <span class="prop">country</span><span class="op">:</span> <span class="str">'US'</span><span class="op">,</span>                          <span class="cm">// optional &mdash; or { nodeAddress: 'sentnode1...' }</span>
+  <span class="prop">protocol</span><span class="op">:</span> <span class="str">'v2ray'</span><span class="op">,</span>                     <span class="cm">// 'v2ray' (zero admin) or 'wireguard' (full route, admin once)</span>
+  <span class="prop">gigabytes</span><span class="op">:</span> <span class="num">1</span><span class="op">,</span>                          <span class="cm">// default 1 &mdash; pay per-GB; or { preferHourly: true, hours: 24 }</span>
 })<span class="op">;</span>
 
-<span class="cm">// {</span>
-<span class="cm">//   connected: true,</span>
-<span class="cm">//   ip: '185.xxx.xxx.xxx',</span>
-<span class="cm">//   country: 'US',</span>
-<span class="cm">//   node: 'sentnode1...',</span>
-<span class="cm">//   sessionId: '12345678',</span>
-<span class="cm">//   protocol: 'wireguard'</span>
-<span class="cm">// }</span></code></pre>
+<span class="cm">// vpn &rarr; {</span>
+<span class="cm">//   sessionId: '45433200',          // on-chain session, paid by the agent</span>
+<span class="cm">//   protocol: 'v2ray',</span>
+<span class="cm">//   nodeAddress: 'sentnode1qjy6h...',</span>
+<span class="cm">//   ip: '104.252.19.187',           // exit IP, verified THROUGH the tunnel by the SDK</span>
+<span class="cm">//   socksPort: 1080,                // V2Ray: route traffic through this SOCKS5 port</span>
+<span class="cm">// }</span>
+
+<span class="cm">// ...do work over the tunnel...</span>
+
+<span class="kw">await</span> <span class="fn">disconnect</span>()<span class="op">;</span>  <span class="cm">// soft: session preserved on-chain, unused GB stays available</span></code></pre>
+    </div>
+
+    <div class="callout callout-warn" style="margin-bottom: 24px;">
+      <div class="callout-title">&#9888;&#65039; V2Ray routes through a SOCKS5 proxy, not the whole system</div>
+      <p>WireGuard captures <em>all</em> system traffic, so your public IP changes the moment it connects. <strong>V2Ray is a userspace SOCKS5 proxy</strong> &mdash; only traffic you point at <code>vpn.socksPort</code> goes through the node. A plain <code>fetch()</code> on the OS default route still shows your real IP, and that is expected, not a failure. The SDK already proves routing for you in <code>vpn.ip</code> (checked through the tunnel). Use <code>vpn.socksPort</code> with a SOCKS agent, or pick <code>protocol: 'wireguard'</code> for transparent system-wide routing.</p>
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
       <div class="bar">
         <div class="label">Autonomous flow &mdash; what the agent manages</div>
       </div>
-      <pre><code><span class="cm">// The agent controls the full lifecycle:</span>
+      <pre><code><span class="cm">// The agent controls the full lifecycle &mdash; no x402, no operator:</span>
 <span class="cm">//</span>
-<span class="cm">// 1. Wallet: Agent creates &amp; holds Sentinel keys (mnemonic)</span>
-<span class="cm">// 2. Tokens: Agent holds P2P tokens (bought on MEXC by API)</span>
-<span class="cm">// 3. Gas: Agent pays Sentinel gas (~0.01 P2P per transaction)</span>
-<span class="cm">// 4. Node selection: Agent queries Sentinel nodes, picks by country/speed/price</span>
-<span class="cm">// 5. Session: Agent starts/ends sessions, pays node at its per-GB / per-hour rate</span>
-<span class="cm">// 6. Tunnel: Agent handshakes directly with VPN node (WireGuard/V2Ray)</span>
+<span class="cm">// 1. Wallet:    Agent creates &amp; holds its Sentinel keys (mnemonic)</span>
+<span class="cm">// 2. Tokens:    Agent holds P2P (bought on MEXC by API &mdash; step zero above)</span>
+<span class="cm">// 3. Gas:       Agent pays its own Sentinel gas (bundled into the session TX)</span>
+<span class="cm">// 4. Node:      Agent queries nodes, picks by country / speed / price</span>
+<span class="cm">// 5. Session:   Agent starts &amp; ends sessions, paying the node at its</span>
+<span class="cm">//               posted per-GB or per-hour rate &mdash; ~40 P2P buys 1 GB</span>
+<span class="cm">//               at the live median (cheapest nodes ~2 P2P/GB)</span>
+<span class="cm">// 6. Tunnel:    Agent handshakes directly with the node (WireGuard / V2Ray)</span>
 <span class="cm">//</span>
-<span class="cm">// Zero middlemen. Zero trust required. Full autonomy. No x402 involved.</span>
-<span class="cm">// All of this ships in blue-js-sdk today.</span></code></pre>
+<span class="cm">// connect() registers cleanup handlers automatically &mdash; on crash or exit it</span>
+<span class="cm">// tears the tunnel down so a dropped process never strands your connection.</span>
+<span class="cm">//</span>
+<span class="cm">// Zero middlemen. Zero trust required. Full autonomy. Ships in blue-js-sdk today.</span></code></pre>
     </div>
 
     <h3 style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px; margin-top: 48px; letter-spacing: 1.5px; text-transform: uppercase;">Both Flows</h3>

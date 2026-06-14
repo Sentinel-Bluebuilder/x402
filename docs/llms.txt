@@ -178,6 +178,41 @@ clean down sequence on exit.
 > the only OS x402 cannot connect on. macOS, Ubuntu, Debian and Arch all work once you install the
 > tunnel binary the CLI shells out to (wireguard-tools, plus v2ray for V2Ray nodes) — see above.
 
+## Autonomous flow — no x402, agent pays the node directly
+
+Separate, optional path. The agent holds its own P2P, picks any node, and pays it directly at the
+node's posted per-GB (default) or per-hour rate. No x402 server, no operator, no fee-grant, no
+subscription. Use this when you want zero intermediaries; use the Managed flow above when you want
+to pay USDC and skip holding P2P/gas yourself.
+
+Prerequisite: the agent's Sentinel wallet already holds P2P (buy it on MEXC by API — `P2PUSDT`
+spot market-buy, then `capital/withdraw` to the `sent1...` address; ~10 USDT ≈ 125,000 P2P).
+Cost per session: node's posted rate, median ~40 P2P/GB, cheapest ~2 P2P/GB. Gas is bundled into
+the session TX (paid by the agent). Verified live: session 45433200, 1 GB v2ray, 40.19 P2P, ~67 s.
+
+```js
+import { connect, disconnect, getBalance } from 'blue-js-sdk/ai-path';
+
+const bal = await getBalance(MNEMONIC); // { address, udvpn, p2p, sufficient }
+
+const vpn = await connect({
+  mnemonic: MNEMONIC,      // agent holds its own keys
+  country: 'US',           // optional — or nodeAddress: 'sentnode1...' to pin one; omit for best anywhere
+  protocol: 'v2ray',       // zero admin (auto-downloads binary, ~70% of nodes); or 'wireguard' (full route, admin once)
+  gigabytes: 1,            // default 1; pay per-GB. Or preferHourly: true, hours: 24
+});
+// vpn → { sessionId, protocol, nodeAddress, ip, socksPort }
+// vpn.ip is the exit IP verified THROUGH the tunnel by the SDK.
+
+await disconnect();        // soft: session preserved on-chain, unused GB stays available
+```
+
+> **V2Ray is a SOCKS5 proxy, not a system route.** Only traffic sent to `vpn.socksPort` exits via
+> the node; a plain `fetch()` on the OS default route still shows your real IP (expected, not a
+> failure). `vpn.ip` already proves routing. For transparent system-wide routing use
+> `protocol: 'wireguard'` (needs admin once on Windows). `connect()` registers cleanup handlers
+> automatically, so a crashed process never strands the tunnel.
+
 ## Packages
 
 - `@x402/fetch` — wraps `fetch`, auto-signs 402 responses
