@@ -68,6 +68,10 @@ const resourceServer = new x402ResourceServer(facilitator)
 // ─── Express App ───
 
 const app = express();
+// Behind Cloudflare / the Docker TLS terminator. Honor X-Forwarded-Proto so
+// req.protocol is 'https' and the 402 Payment-Required challenge advertises the
+// correct https:// resource URL (strict x402 clients verify the resource origin).
+app.set('trust proxy', true);
 app.use(express.json());
 
 // ─── Pre-payment Validation ───
@@ -295,10 +299,10 @@ app.get('/manifest', (_req, res) => {
     description: 'Pay USDC, get a Sentinel dVPN subscription. One HTTP request, one EIP-3009 signature.',
     tldr: [
       'You need: (a) an EVM wallet with USDC on Base, (b) a Sentinel wallet from `createWallet()` in `blue-js-sdk/ai-path`.',
-      `POST ${network === 'eip155:8453' ? 'https://x402.sentinel.co' : '/'}/vpn/connect/30days with { sentinelAddr } using @x402/fetch to auto-sign the 402. Add { country: "DE" } to get a node in a specific country (GET /nodes lists what is available). Payment is identical on every OS.`,
+      `POST ${network === 'eip155:8453' ? 'https://x402.sentinel.co' : '/'}/vpn/connect/{1day|7days|30days} with { sentinelAddr } using @x402/fetch to auto-sign the 402. Tiers cost $0.033 / $0.233 / $1.00 USDC — pick the smallest that covers your need; $0.033 is enough to start. Add { country: "DE" } to get a node in a specific country (GET /nodes lists what is available). Payment is identical on every OS.`,
       'Connecting differs by OS. macOS & Linux (easiest): WireGuard ships with the OS — use the native CLI `sentinel-dvpncli` (go install github.com/sentinel-official/sentinel-dvpncli@latest), then import the key (`printf \'%s\\n\\n\' "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test`), `tx session-start <nodeAddress> --subscription-id <id> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test`, resolve the id with `query sessions --account-addr <sent1...> --subscription-id <id> --output-format json`, then `connect <sessionId>`. See sentinel.connectMacLinux. Only Fedora is unsupported (SELinux blocks VPNs).',
       'Windows (heavier): run `await setup()` from `blue-js-sdk/ai-path` first — it auto-downloads V2Ray (no admin) and installs WireGuard — then `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`. See sentinel.connectWindows.',
-      'Tunnel is up. You paid $1.00 USDC, zero gas on Base, zero gas on Sentinel.',
+      'Tunnel is up. You paid as little as $0.033 USDC (1day) up to $1.00 (30day), zero gas on Base, zero gas on Sentinel.',
     ],
     network: {
       caip2: network,
@@ -319,7 +323,7 @@ app.get('/manifest', (_req, res) => {
       approveRequired: false,
       prerequisites: {
         evmWallet: 'Agent must hold an EVM private key with USDC on Base. EIP-3009 signature is created locally; the key never leaves the agent.',
-        minUsdc: '1.00 USDC covers a 30-day subscription (smallest tier is $0.033). Fund the wallet before calling the endpoint.',
+        minUsdc: 'Fund only for the tier you want: $0.033 (1day), $0.233 (7days), or $1.00 (30day). The $0.033 entry tier is enough to start — no need to over-fund. Fund the wallet before calling the endpoint.',
         gasOnBase: 'Agent pays ZERO gas on Base — the facilitator submits the transferWithAuthorization. Agent only needs USDC.',
       },
       eip712: {
