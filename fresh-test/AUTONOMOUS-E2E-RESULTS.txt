@@ -1,0 +1,57 @@
+x402 AUTONOMOUS-FLOW E2E — LIVE RESULT
+========================================
+Date:        2026-06-14 (UTC)
+Flow:        Autonomous — agent holds its own P2P and pays the node DIRECTLY.
+             No x402 server, no operator, no fee-grant, no MsgShareSubscription.
+Runner:      fresh-test/connect-autonomous.mjs
+SDK:         blue-js-sdk@2.8.0  (blue-js-sdk/ai-path connect())
+Protocol:    v2ray  (zero-admin Windows path)
+Country:     US (SDK auto-picked node)
+
+RESULT: PASS
+------------
+Agent wallet:   sent12r7g5zqj3w6glfqtxztc9qhd82yg4lddvezjt4
+Node selected:  sentnode1qjy6hphezyqzf4l42peut3tgd45c8rpylczs6h
+                "0_Premium_Service_100G_Nibiru129" — Santa Clara, United States
+                v2ray, qualityScore=55
+Session:        45433200  (per-GB, 1 GB)
+Session TX:     9BD199C324800C2C05E6BA46539A9D377AAA0E14BA97D0987DC4DC6D42218AA1
+Handshake:      V2Ray VLESS/TCP/TLS — 104.252.19.187:6699 — connected
+Exit IP:        104.252.19.187  (SDK-verified THROUGH the tunnel)
+Host IP:        67.169.16.153
+Routed:         YES — exit IP differs from host IP
+
+COST
+----
+Before:  1000.00 P2P
+After:    959.81 P2P
+Spent:     40.19 P2P  for a 1 GB per-GB session
+           (right at the live network median of ~40 P2P/GB)
+Gas:       included in the 40.19 (MsgStartSession gas paid by the agent itself)
+
+TIMING
+------
+End-to-end connect:  ~67 s
+  - node discovery (probed 200 US nodes, 197 online): ~46 s
+  - session TX broadcast + index: ~7 s
+  - V2Ray handshake + tunnel verify: ~13 s
+
+NOTES
+-----
+1. The agent paid the node directly. No operator involvement at any step —
+   this is the fully decentralized, self-custody path.
+
+2. V2Ray is a SOCKS-proxy tunnel, NOT a full system TUN route (that's WireGuard).
+   So a top-level fetch() on the host's default route still shows the host IP.
+   The SDK's own through-tunnel IP check (vpn.ip = 104.252.19.187) is the source
+   of truth and confirms traffic exits via the node. For full system routing on
+   Windows, use protocol: 'wireguard' (admin-once) or route the app through the
+   returned SOCKS port.
+
+3. Disconnect was SOFT — session 45433200 is preserved on-chain (status=1) for
+   reuse, so the remaining ~0.96 GB of the 1 GB quota stays available. No
+   MsgCancelSession broadcast. To hard-end and settle the deposit, use
+   disconnectAndEndSession().
+
+4. Zero prerequisites held: admin=true, v2ray binary present. On a non-admin box
+   the v2ray path still works (binary auto-downloads to ~/.sentinel-sdk/bin).

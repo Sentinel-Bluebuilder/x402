@@ -487,7 +487,7 @@ async function buildProvisionResult(opts: {
     sentinelTxHash: opts.txHash,
     expiresAt: opts.expiresAt,
     operatorAddress,
-    instructions: `import { setup, connect } from 'blue-js-sdk/ai-path'; await setup(); /* installs V2Ray automatically if no tunnel binary is present */ await connect({ mnemonic, nodeAddress: '${recommended}', subscriptionId: '${opts.subscriptionId}', feeGranter: '${operatorAddress}' })`,
+    instructions: `import { connect } from 'blue-js-sdk/ai-path'; await connect({ mnemonic, protocol: 'v2ray', nodeAddress: '${recommended}', subscriptionId: '${opts.subscriptionId}', feeGranter: '${operatorAddress}' }); // protocol:'v2ray' = no admin; binary auto-installs. gas paid by feeGranter.`,
   };
 }
 
