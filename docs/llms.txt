@@ -10,7 +10,7 @@ The agent needs exactly one thing before calling x402: an EVM private key with a
 
 **Payment is identical on every platform.** What differs is *connecting* the tunnel after the server returns 200. There are two equally-supported connect paths — pick by OS:
 
-- **macOS & Linux (easiest):** WireGuard already ships with the OS, so there is nothing to install for the tunnel itself. Use the native `sentinel-dvpncli` (one `go install`), then drive it with three flag-only commands — see **"macOS & Linux — native CLI connect"** below. No admin/sudo for V2Ray; WireGuard may need sudo to bring an interface up, same as any WireGuard client. **Only exception: Fedora** — its SELinux blocks VPN interfaces and cannot be worked around programmatically; macOS, Ubuntu, Debian and other mainstream Linux are fine.
+- **macOS & Linux:** Use the native `sentinel-dvpncli` (one `go install`, Go 1.24+), then drive it with three flag-only commands — see **"macOS & Linux — native CLI connect"** below. The CLI does NOT bundle a tunnel: it shells out to `wg-quick` for WireGuard nodes, so install **wireguard-tools** first (`apt install wireguard-tools` | `brew install wireguard-tools` | `pacman -S wireguard-tools`), or a `v2ray` binary on PATH for V2Ray nodes. Most nodes are WireGuard; bringing the interface up needs sudo. **Only exception: Fedora** — its SELinux blocks VPN interfaces and cannot be worked around programmatically; macOS, Ubuntu, Debian and Arch are fine once the tunnel binary is installed.
 - **Windows (heavier):** run `await setup()` from `blue-js-sdk/ai-path` once on a fresh machine before `connect()`. It auto-downloads V2Ray 5.2.1 to `~/.sentinel-sdk/bin` (no admin) and detects/auto-installs WireGuard (the MSI install needs admin). It returns `{ ready, capabilities, recommended, issues }` — if `capabilities` includes `v2ray`, you can connect with zero manual installs. See **"Windows — JS-SDK connect"** below.
 
 Both paths consume the exact same 200 response (`subscriptionId`, `planId`, `feeGranter`, `nodeAddress`) and end in the same `MsgStartSession` + direct WireGuard/V2Ray handshake.
@@ -112,11 +112,16 @@ const vpn = await connect({
 
 ## macOS & Linux — native CLI connect
 
-This is the easiest connect path. After the `paidFetch` call above returns `provision`
+After the `paidFetch` call above returns `provision`
 (`{ subscriptionId, planId, feeGranter, nodeAddress, ... }`), do NOT call the JS `connect()`.
 Instead drive Sentinel's native `sentinel-dvpncli` — three fully flag-driven commands, no config
-files, no interactive prompts when you pass the flags below. WireGuard already ships with macOS
-and mainstream Linux, so there is nothing to install for the tunnel itself.
+files, no interactive prompts when you pass the flags below.
+
+Unlike the Windows path, the native CLI does NOT bundle a tunnel — it shells out to the system
+binary on your PATH. WireGuard nodes run `wg-quick`, so you must install **wireguard-tools**
+(`apt install wireguard-tools` | `brew install wireguard-tools` | `pacman -S wireguard-tools`).
+V2Ray nodes run `v2ray`, so if you select a V2Ray node you also need a **v2ray** binary on PATH.
+Most nodes are WireGuard, so install wireguard-tools at minimum. Bringing the interface up needs sudo.
 
 **Install once (Go 1.24+):**
 
@@ -157,7 +162,7 @@ SESSION_ID=$(sentinel-dvpncli query sessions \
 
 # 4. Bring the tunnel up. Takes the SESSION id (not the subscription id). No key needed —
 #    connect only queries the session on-chain and builds the tunnel.
-#    WireGuard nodes may need sudo to create the interface — same as any wg client.
+#    Requires wg-quick on PATH (install wireguard-tools) and sudo to create the interface.
 sentinel-dvpncli connect "$SESSION_ID"
 ```
 
@@ -167,16 +172,16 @@ Defaults baked into the CLI (override only if needed): `--rpc.addrs https://rpc.
 `sentinel-dvpncli tx session-cancel <id>` to tear down. `connect` traps SIGINT/SIGTERM and runs a
 clean down sequence on exit.
 
-> **Fedora caveat:** Fedora's SELinux blocks VPN interfaces and an agent cannot bypass it. macOS,
-> Ubuntu, Debian, Arch and other mainstream distros work out of the box. This is the only OS x402
-> cannot connect on.
+> **Fedora caveat:** Fedora's SELinux blocks VPN interfaces and an agent cannot bypass it. This is
+> the only OS x402 cannot connect on. macOS, Ubuntu, Debian and Arch all work once you install the
+> tunnel binary the CLI shells out to (wireguard-tools, plus v2ray for V2Ray nodes) — see above.
 
 ## Packages
 
 - `@x402/fetch` — wraps `fetch`, auto-signs 402 responses
 - `@x402/evm` — `ExactEvmScheme` EIP-3009 signer
 - `blue-js-sdk/ai-path` — Windows connect path: environment setup (`setup` — auto-installs tunnel binaries), Sentinel wallet (`createWallet`, `importWallet`), tunnel (`connect`, `disconnect`), and plan/node discovery (`rpcQueryNodesForPlan`, `createRpcQueryClientWithFallback`) — WireGuard/V2Ray
-- `sentinel-dvpncli` — macOS/Linux connect path: native Go CLI (`go install github.com/sentinel-official/sentinel-dvpncli@latest`). Flag-driven `keys` / `tx session-start` / `connect` — drives the tunnel without the JS SDK. WireGuard ships with the OS.
+- `sentinel-dvpncli` — macOS/Linux connect path: native Go CLI (`go install github.com/sentinel-official/sentinel-dvpncli@latest`, needs Go 1.24+). Flag-driven `keys` / `tx session-start` / `connect` — drives the tunnel without the JS SDK. Does NOT bundle a tunnel: shells out to `wg-quick` (install wireguard-tools) or `v2ray` on PATH.
 
 ## Request schema
 

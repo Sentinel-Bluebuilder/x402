@@ -54,7 +54,7 @@
       "rpcFallbacks": ["https://rpc.sentinel.co:443", "https://sentinel-rpc.polkachu.com", "https://rpc.mathnodes.com", "https://sentinel-rpc.publicnode.com", "https://rpc.sentinel.quokkastake.io", "https://rpc.sentinel.suchnode.net:443"],
       "lcdFallbacks": ["https://lcd.sentinel.co", "https://sentinel-api.polkachu.com", "https://api.sentinel.quokkastake.io", "https://sentinel-rest.publicnode.com", "https://api.sentinel.suchnode.net"],
       "platforms": "Payment is identical everywhere; only the connect step differs by OS.",
-      "connectMacLinux": "EASIEST. WireGuard ships with the OS. Use native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest): (1) printf '%s\\n\\n' \"$MNEMONIC\" | sentinel-dvpncli keys add agent --keyring.backend test (keys add is interactive: line 1 = mnemonic, blank line 2 = default passphrase; there is no --recover flag); (2) sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test; (3) sessionId = sentinel-dvpncli query sessions --account-addr <sent1...> --subscription-id <subscriptionId> --output-format json (newest entry); (4) sentinel-dvpncli connect <sessionId>. Exception: Fedora (SELinux blocks VPNs).",
+      "connectMacLinux": "Native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest, needs Go 1.24+). The CLI does NOT bundle a tunnel: it shells out to wg-quick (install wireguard-tools: apt/brew/pacman) for WireGuard nodes, or v2ray on PATH for V2Ray nodes. Most nodes are WireGuard, so install wireguard-tools at minimum; sudo is needed to bring the interface up. Then: (1) printf '%s\\n\\n' \"$MNEMONIC\" | sentinel-dvpncli keys add agent --keyring.backend test (keys add is interactive: line 1 = mnemonic, blank line 2 = default passphrase; there is no --recover flag); (2) sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test; (3) sessionId = sentinel-dvpncli query sessions --account-addr <sent1...> --subscription-id <subscriptionId> --output-format json (newest entry); (4) sentinel-dvpncli connect <sessionId>. Exception: Fedora (SELinux blocks VPNs).",
       "connectWindows": "Heavier JS path. await setup() from blue-js-sdk/ai-path — run once on a fresh machine; auto-downloads V2Ray (no admin), checks/installs WireGuard (MSI needs admin); returns { ready, capabilities, recommended, issues }",
       "walletCreate": "createWallet() from blue-js-sdk/ai-path → { address, mnemonic }",
       "connect": "Windows JS tunnel: connect({ mnemonic, subscriptionId, feeGranter, nodeAddress }) → { connected, ip, protocol }. On macOS/Linux use connectMacLinux (native CLI) instead.",
@@ -1604,13 +1604,13 @@ section h3 {
         </span>
         <span class="os-label">Windows <span class="os-status">live</span></span>
       </div>
-      <div class="os-chip live" title="Live — easiest path, connect works out of the box">
+      <div class="os-chip live" title="Live — native CLI connect; install wireguard-tools (wg-quick) first">
         <span class="os-logo" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 1.3c.1 1.1-.3 2.2-1 3-.6.8-1.7 1.4-2.7 1.4-.2-1.1.3-2.2.9-2.9.8-.9 2-1.5 2.8-1.5Zm3.6 16.4c-.5 1.2-.8 1.7-1.4 2.8-.9 1.5-2.2 3.4-3.9 3.5-1.5 0-1.8-.9-3.8-.9-1.9 0-2.3.9-3.8.9-1.6-.1-2.9-1.8-3.8-3.3-2.5-4.3-2.7-9.4-1.2-12.1 1.1-1.9 2.8-3.1 4.4-3.1 1.5 0 2.5.9 3.8.9 1.3 0 2.1-.9 3.9-.9 1.4 0 3 .8 4.1 2.2-3.6 2-3 7.2 1.7 10Z"/></svg>
         </span>
         <span class="os-label">macOS <span class="os-status">live</span></span>
       </div>
-      <div class="os-chip live" title="Live — easiest path, connect works out of the box (except Fedora)">
+      <div class="os-chip live" title="Live — native CLI connect; install wireguard-tools first (except Fedora: SELinux blocks VPNs)">
         <span class="os-logo" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 2c-2 0-3.3 1.6-3.3 4 0 1 .2 1.9.4 2.5-.7.5-1.3 1.4-1.8 2.6-.7 1.6-1 3.8-1.7 5.2-.5 1-1.5 1.5-2 2.2-.4.4-.5 1.3.4 1.6.7.2 1.3-.2 1.9-.6.4-.3.9-.4 1.2-.4.4.1.5.5.6 1 .1 1.3 1 2.2 2.9 2.4 1.8.2 4-.4 5.7-.4 1 0 1.7.1 2.3.1.6 0 1-.5 1-1 0-.5-.4-.9-.9-1.3-1.1-1-1.4-2.3-1.8-4-.4-1.6-.9-3.5-2.3-4.7.4-.8.6-1.7.6-2.7 0-2.3-1.3-4-3.2-4Zm-1 3.3c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Zm2.1 0c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Z"/></svg>
         </span>
@@ -2061,11 +2061,11 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 
     <div class="code-block" style="margin-bottom: 24px;">
       <div class="bar">
-        <div class="label">Step 3 &mdash; macOS &amp; Linux (easiest): connect via native CLI</div>
+        <div class="label">Step 3 &mdash; macOS &amp; Linux: connect via native CLI</div>
       </div>
       <pre><code><span class="cm">// Payment (Steps 0-2 above) is identical. macOS &amp; Linux skip the JS connect()</span>
-<span class="cm">// and use Sentinel's native CLI instead &mdash; WireGuard already ships with the OS,</span>
-<span class="cm">// so there's nothing to install for the tunnel. Four commands, scriptable end to end.</span>
+<span class="cm">// and use Sentinel's native CLI instead. Unlike Windows, the CLI does NOT bundle a tunnel:</span>
+<span class="cm">// it shells out to wg-quick, so install wireguard-tools first (apt/brew/pacman). Four commands.</span>
 <span class="cm">// CLI: https://github.com/sentinel-official/sentinel-dvpncli</span>
 
 <span class="cm">// Install once (Go 1.24+):</span>
@@ -2417,11 +2417,12 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
 }
 
 <span class="cm">// ── Step 5: Connect to VPN (0 gas, 0 P2P) ──</span>
-<span class="cm">// This connect() is the Windows path. On macOS/Linux (easiest) use the native CLI instead:</span>
+<span class="cm">// This connect() is the Windows path. On macOS/Linux use the native CLI instead</span>
+<span class="cm">// (install wireguard-tools first — the CLI shells out to wg-quick, it bundles no tunnel):</span>
 <span class="cm">//   printf '%s\n\n' "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test</span>
 <span class="cm">//   sentinel-dvpncli tx session-start &lt;nodeAddress&gt; --subscription-id &lt;id&gt; --tx.fee-granter-addr &lt;feeGranter&gt; --tx.from-name agent --keyring.backend test</span>
 <span class="cm">//   sessionId=$(sentinel-dvpncli query sessions --account-addr &lt;sent1...&gt; --subscription-id &lt;id&gt; --output-format json | jq '.result[-1].id')</span>
-<span class="cm">//   sentinel-dvpncli connect &lt;sessionId&gt;   (WireGuard ships with the OS; nothing to install)</span>
+<span class="cm">//   sentinel-dvpncli connect &lt;sessionId&gt;   (needs wg-quick on PATH: install wireguard-tools + sudo)</span>
 <span class="kw">const</span> vpn <span class="op">=</span> <span class="kw">await</span> <span class="fn">connect</span>({
   <span class="prop">mnemonic</span><span class="op">:</span> wallet<span class="op">.</span>mnemonic<span class="op">,</span>
   <span class="prop">nodeAddress</span><span class="op">,</span>
