@@ -299,8 +299,9 @@ app.get('/manifest', (_req, res) => {
     description: 'Pay USDC, get a Sentinel dVPN subscription. One HTTP request, one EIP-3009 signature.',
     tldr: [
       'You need: (a) an EVM wallet with USDC on Base, (b) a Sentinel wallet from `createWallet()` in `blue-js-sdk/ai-path`.',
+      'Install (agent side only — you do NOT clone this repo): `npm install @x402/fetch @x402/evm viem blue-js-sdk`. That is the complete dependency set for paying and connecting. The express/@x402/express/dotenv packages are operator-only — ignore them.',
       `POST ${network === 'eip155:8453' ? 'https://x402.sentinel.co' : '/'}/vpn/connect/{1day|7days|30days} with { sentinelAddr } using @x402/fetch to auto-sign the 402. Tiers cost $0.033 / $0.233 / $1.00 USDC — pick the smallest that covers your need; $0.033 is enough to start. Add { country: "DE" } to get a node in a specific country (GET /nodes lists what is available). Payment is identical on every OS.`,
-      'Connecting differs by OS. macOS & Linux (easiest): WireGuard ships with the OS — use the native CLI `sentinel-dvpncli` (go install github.com/sentinel-official/sentinel-dvpncli@latest), then import the key (`printf \'%s\\n\\n\' "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test`), `tx session-start <nodeAddress> --subscription-id <id> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test`, resolve the id with `query sessions --account-addr <sent1...> --subscription-id <id> --output-format json`, then `connect <sessionId>`. See sentinel.connectMacLinux. Only Fedora is unsupported (SELinux blocks VPNs).',
+      'Connecting differs by OS. macOS & Linux: use the native CLI `sentinel-dvpncli` (go install github.com/sentinel-official/sentinel-dvpncli@latest — needs Go 1.24+). The CLI shells out to the system tunnel binary, so install `wireguard-tools` (provides `wg-quick`; most nodes are WireGuard) and, for V2Ray nodes, a `v2ray` binary on PATH. Then import the key (`printf \'%s\\n\\n\' "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test`), `tx session-start <nodeAddress> --subscription-id <id> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test`, resolve the id with `query sessions --account-addr <sent1...> --subscription-id <id> --output-format json`, then `connect <sessionId>` (sudo to bring the interface up). See sentinel.connectMacLinux. Only Fedora is unsupported (SELinux blocks VPNs).',
       'Windows (heavier): run `await setup()` from `blue-js-sdk/ai-path` first — it auto-downloads V2Ray (no admin) and installs WireGuard — then `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`. See sentinel.connectWindows.',
       'Tunnel is up. You paid as little as $0.033 USDC (1day) up to $1.00 (30day), zero gas on Base, zero gas on Sentinel.',
     ],
@@ -450,9 +451,15 @@ app.get('/manifest', (_req, res) => {
       { step: 9, actor: 'agent', action: 'MsgStartSession (gas paid by operator via fee grant)' },
       { step: 10, actor: 'agent', action: 'Direct WireGuard/V2Ray handshake with node — tunnel up' },
     ],
+    install: {
+      npm: 'npm install @x402/fetch @x402/evm viem blue-js-sdk',
+      note: 'Agent side only — you do NOT clone this repo. The four packages above are the complete set for paying + connecting on every OS. express / @x402/express / dotenv are operator-only; do not install them.',
+      nativeMacLinux: 'The macOS/Linux connect path also needs, OUTSIDE npm: Go 1.24+ (to `go install` sentinel-dvpncli), wireguard-tools (provides `wg-quick`, for WireGuard nodes), and a `v2ray` binary on PATH (for V2Ray nodes). The Windows path needs none of these — setup() fetches them.',
+    },
     packages: {
       payment: '@x402/fetch',
       scheme: '@x402/evm',
+      evm: 'viem',
       sentinel: 'blue-js-sdk/ai-path',
     },
     example: {
@@ -517,11 +524,12 @@ app.get('/manifest', (_req, res) => {
         returns: { address: 'sent1... (use this as sentinelAddr)', mnemonic: 'string (persist this)' },
         note: 'Generate once per agent. The address goes in the request body; the mnemonic signs MsgStartSession.',
       },
-      platforms: 'Payment is identical on every OS; only the connect step differs. macOS & Linux are the easiest path (native CLI, WireGuard ships with the OS — see connectMacLinux). Windows uses the heavier JS-SDK path (see connectWindows / connect). Only Fedora is unsupported: its SELinux blocks VPN interfaces and cannot be bypassed programmatically.',
+      platforms: 'Payment is identical on every OS; only the connect step differs. macOS & Linux use the native CLI (sentinel-dvpncli + a system tunnel binary — see connectMacLinux). Windows uses the JS-SDK path where setup() fetches the tunnel binaries for you (see connectWindows / connect). Only Fedora is unsupported: its SELinux blocks VPN interfaces and cannot be bypassed programmatically.',
       connectMacLinux: {
         tool: 'sentinel-dvpncli',
         install: 'go install github.com/sentinel-official/sentinel-dvpncli@latest (Go 1.24+); binary lands in $(go env GOPATH)/bin',
-        why: 'Easiest path — WireGuard ships with macOS and mainstream Linux, so nothing to install for the tunnel. Flag-driven, non-interactive.',
+        nativeDeps: 'The CLI does NOT bundle a tunnel — it shells out. WireGuard nodes run `wg-quick up` (install wireguard-tools: `apt install wireguard-tools` / `brew install wireguard-tools` / `pacman -S wireguard-tools`). V2Ray nodes run `v2ray run --config` (install a `v2ray` binary on PATH). Most nodes are WireGuard; install wireguard-tools at minimum. Bringing the interface up needs sudo.',
+        why: 'Flag-driven, non-interactive — good for agents. Trade-off vs Windows: you install the tunnel binary yourself (Windows setup() auto-fetches it).',
         steps: [
           'keys add: printf \'%s\\n\\n\' "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test  (import the SAME wallet whose sentinelAddr you sent to x402. keys add is INTERACTIVE — no --recover flag: line 1 answers the mnemonic prompt, the blank line 2 accepts the default empty BIP-39 passphrase. A single-line echo would hang on the passphrase prompt.)',
           'session-start: sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test --rpc.chain-id sentinelhub-2 --output-format json  (operator fee-grants the gas)',
