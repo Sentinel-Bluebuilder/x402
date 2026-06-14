@@ -447,14 +447,14 @@ app.get('/manifest', (_req, res) => {
       { step: 5, actor: 'facilitator', action: 'Settle USDC on Base (~2s)' },
       { step: 6, actor: 'server', action: 'Atomic MsgShareSubscription + MsgGrantAllowance on Sentinel' },
       { step: 7, actor: 'server', action: 'Respond 200 with subscriptionId, feeGranter, nodeAddress' },
-      { step: 8, actor: 'agent', action: 'Connect (OS-specific, same 200 fields). macOS/Linux: keys add (printf mnemonic+blank-line | keys add agent --keyring.backend test), tx session-start <nodeAddress> --subscription-id <id> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test, resolve id via query sessions --account-addr <sent1...> --subscription-id <id> --output-format json, then connect <sessionId>. Windows: setup() once, then connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })' },
+      { step: 8, actor: 'agent', action: 'Connect (OS-specific, same 200 fields). macOS/Linux: keys add (printf mnemonic+blank-line | keys add agent --keyring.backend test), tx session-start <nodeAddress> --subscription-id <id> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test, resolve id via query sessions --account-addr <sent1...> --subscription-id <id> --output-format json, then connect <sessionId>. Windows: connect({ mnemonic, subscriptionId, feeGranter, nodeAddress, protocol: "v2ray" }) — zero admin, binary auto-installs; setup() is optional.' },
       { step: 9, actor: 'agent', action: 'MsgStartSession (gas paid by operator via fee grant)' },
       { step: 10, actor: 'agent', action: 'Direct WireGuard/V2Ray handshake with node — tunnel up' },
     ],
     install: {
       npm: 'npm install @x402/fetch @x402/evm viem blue-js-sdk',
       note: 'Agent side only — you do NOT clone this repo. The four packages above are the complete set for paying + connecting on every OS. express / @x402/express / dotenv are operator-only; do not install them.',
-      nativeMacLinux: 'The macOS/Linux connect path also needs, OUTSIDE npm: Go 1.24+ (to `go install` sentinel-dvpncli), wireguard-tools (provides `wg-quick`, for WireGuard nodes), and a `v2ray` binary on PATH (for V2Ray nodes). The Windows path needs none of these — setup() fetches them.',
+      nativeMacLinux: 'The macOS/Linux connect path also needs, OUTSIDE npm: Go 1.24+ (to `go install` sentinel-dvpncli), wireguard-tools (provides `wg-quick`, for WireGuard nodes), and a `v2ray` binary on PATH (for V2Ray nodes). The Windows path needs none of these — connect({ protocol: "v2ray" }) auto-fetches the binary (setup() is optional).',
     },
     packages: {
       payment: '@x402/fetch',

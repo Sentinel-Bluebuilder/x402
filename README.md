@@ -24,7 +24,8 @@ const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {
 });
 
 const { subscriptionId, feeGranter, nodeAddress } = await res.json();
-const vpn = await connect({ mnemonic: wallet.mnemonic, subscriptionId, feeGranter, nodeAddress });
+const vpn = await connect({ mnemonic: wallet.mnemonic, subscriptionId, feeGranter, nodeAddress, protocol: 'v2ray' });
+// protocol:'v2ray' = zero admin on Windows, binary auto-installs (~70% of nodes).
 // vpn.connected === true — agent's IP is now a Sentinel node, zero gas paid
 ```
 
@@ -163,6 +164,7 @@ const vpn = await connect({
   nodeAddress: provision.nodeAddress,
   subscriptionId: String(provision.subscriptionId),
   feeGranter: provision.feeGranter,
+  protocol: 'v2ray', // zero admin on Windows, binary auto-installs (~70% of nodes)
 });
 
 console.log(`VPN up: ${vpn.ip} via ${vpn.protocol}`);
