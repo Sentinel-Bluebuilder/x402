@@ -11,7 +11,7 @@ The agent needs exactly one thing before calling x402: an EVM private key with a
 **Payment is identical on every platform.** What differs is *connecting* the tunnel after the server returns 200. There are two equally-supported connect paths — pick by OS:
 
 - **macOS & Linux:** Use the native `sentinel-dvpncli` (one `go install`, Go 1.24+), then drive it with three flag-only commands — see **"macOS & Linux — native CLI connect"** below. The CLI does NOT bundle a tunnel: it shells out to `wg-quick` for WireGuard nodes, so install **wireguard-tools** first (`apt install wireguard-tools` | `brew install wireguard-tools` | `pacman -S wireguard-tools`), or a `v2ray` binary on PATH for V2Ray nodes. Most nodes are WireGuard; bringing the interface up needs sudo. **Only exception: Fedora** — its SELinux blocks VPN interfaces and cannot be worked around programmatically; macOS, Ubuntu, Debian and Arch are fine once the tunnel binary is installed.
-- **Windows (heavier):** run `await setup()` from `blue-js-sdk/ai-path` once on a fresh machine before `connect()`. It auto-downloads V2Ray 5.2.1 to `~/.sentinel-sdk/bin` (no admin) and detects/auto-installs WireGuard (the MSI install needs admin). It returns `{ ready, capabilities, recommended, issues }` — if `capabilities` includes `v2ray`, you can connect with zero manual installs. See **"Windows — JS-SDK connect"** below.
+- **Windows (zero prerequisites):** pass `protocol: 'v2ray'` to `connect()` and you need **no admin and no manual install**. V2Ray is a userspace SOCKS5 proxy; `connect()` auto-downloads the `v2ray` binary to `~/.sentinel-sdk/bin` on first use (no admin) and covers ~70% of the network (~630 nodes). That is the complete Windows path: `npm install` → pay → `connect({ ..., protocol: 'v2ray' })`. WireGuard nodes (the other ~30%, faster) are an **optional admin-once upgrade** — the MSI install and tunnel service need elevation (`cscript run-admin.vbs setup.js` triggers one UAC prompt; a service running as SYSTEM/admin needs none). The SDK checks admin **before payment** and refuses a WireGuard node when not elevated, so no USDC or P2P is ever wasted. If you cannot elevate, stay on `protocol: 'v2ray'`. `await setup()` is optional (it pre-fetches V2Ray; `connect()` fetches it anyway). See **"Windows — JS-SDK connect"** below.
 
 Both paths consume the exact same 200 response (`subscriptionId`, `planId`, `feeGranter`, `nodeAddress`) and end in the same `MsgStartSession` + direct WireGuard/V2Ray handshake.
 
@@ -60,7 +60,7 @@ Free:
 7. Server returns 200 `{ provisioned, subscriptionId, planId, feeGranter, nodeAddress, nodeCountry, nodes[], sentinelTxHash, expiresAt }`.
 8. Agent connects, using the path for its OS (both consume the same 200 fields):
    - **macOS/Linux:** import the key (`printf '%s\n\n' "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test`), `sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test`, resolve the new id with `sentinel-dvpncli query sessions --account-addr <sent1...> --subscription-id <subscriptionId> --output-format json` (newest entry), then `sentinel-dvpncli connect <sessionId>`. (See "macOS & Linux — native CLI connect".)
-   - **Windows:** `setup()` once on a fresh machine, then `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress })`. (See "Windows — JS-SDK connect".)
+   - **Windows:** `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress, protocol: 'v2ray' })` — zero admin, zero manual install (the v2ray binary auto-downloads). Omit `protocol` only if you have admin and want WireGuard nodes too. (See "Windows — JS-SDK connect".)
 9. `MsgStartSession` on Sentinel — gas paid by `feeGranter` (the fee grant the server created in step 6, so the agent's session start costs zero P2P).
 10. Direct WireGuard/V2Ray handshake — tunnel up. The operator never sees it.
 
@@ -78,7 +78,7 @@ import {
   rpcQueryNodesForPlan, createRpcQueryClientWithFallback,
 } from 'blue-js-sdk/ai-path';
 
-await setup(); // fresh machine: auto-downloads V2Ray, checks WireGuard
+await setup(); // optional: pre-fetch V2Ray (no admin). connect({ protocol: 'v2ray' }) auto-fetches it anyway.
 const wallet = await createWallet();
 const scheme = new ExactEvmScheme({ address, signTypedData });
 const client = new x402Client();
@@ -106,6 +106,8 @@ const vpn = await connect({
   subscriptionId: String(subscriptionId),
   feeGranter,
   nodeAddress,
+  protocol: 'v2ray', // zero admin, zero manual install — Windows zero-prereq path.
+                     // Omit only if you have admin and want WireGuard nodes (faster, ~30% of network).
 });
 // vpn.connected === true
 ```

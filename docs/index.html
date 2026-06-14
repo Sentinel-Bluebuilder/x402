@@ -55,9 +55,9 @@
       "lcdFallbacks": ["https://lcd.sentinel.co", "https://sentinel-api.polkachu.com", "https://api.sentinel.quokkastake.io", "https://sentinel-rest.publicnode.com", "https://api.sentinel.suchnode.net"],
       "platforms": "Payment is identical everywhere; only the connect step differs by OS.",
       "connectMacLinux": "Native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest, needs Go 1.24+). The CLI does NOT bundle a tunnel: it shells out to wg-quick (install wireguard-tools: apt/brew/pacman) for WireGuard nodes, or v2ray on PATH for V2Ray nodes. Most nodes are WireGuard, so install wireguard-tools at minimum; sudo is needed to bring the interface up. Then: (1) printf '%s\\n\\n' \"$MNEMONIC\" | sentinel-dvpncli keys add agent --keyring.backend test (keys add is interactive: line 1 = mnemonic, blank line 2 = default passphrase; there is no --recover flag); (2) sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test; (3) sessionId = sentinel-dvpncli query sessions --account-addr <sent1...> --subscription-id <subscriptionId> --output-format json (newest entry); (4) sentinel-dvpncli connect <sessionId>. Exception: Fedora (SELinux blocks VPNs).",
-      "connectWindows": "Heavier JS path. await setup() from blue-js-sdk/ai-path — run once on a fresh machine; auto-downloads V2Ray (no admin), checks/installs WireGuard (MSI needs admin); returns { ready, capabilities, recommended, issues }",
+      "connectWindows": "Zero-prereq path: pass protocol: 'v2ray' to connect() — no admin, no manual install. V2Ray is a userspace SOCKS5 proxy; connect() auto-downloads the v2ray binary to ~/.sentinel-sdk/bin on first use (no admin), covering ~70% of nodes. setup() is optional (it just pre-fetches V2Ray). WireGuard nodes (the other ~30%, faster) need admin ONCE for the MSI install + tunnel service; the SDK checks admin BEFORE payment and refuses a WireGuard node when not elevated, so no funds are wasted. If you cannot elevate, stay on protocol: 'v2ray'.",
       "walletCreate": "createWallet() from blue-js-sdk/ai-path → { address, mnemonic }",
-      "connect": "Windows JS tunnel: connect({ mnemonic, subscriptionId, feeGranter, nodeAddress }) → { connected, ip, protocol }. On macOS/Linux use connectMacLinux (native CLI) instead.",
+      "connect": "Windows JS tunnel: connect({ mnemonic, subscriptionId, feeGranter, nodeAddress, protocol: 'v2ray' }) → { connected, ip, protocol }. protocol: 'v2ray' = zero admin, zero manual install (auto-downloaded binary, ~70% of nodes) — the recommended Windows path. Omit protocol only if you have admin and want WireGuard nodes too. On macOS/Linux use connectMacLinux (native CLI) instead.",
       "disconnect": "JS: disconnect() ends session on-chain (fee-granted), tears down tunnel. CLI: sentinel-dvpncli tx session-cancel <sessionId>",
       "nodeFallback": "If provision.nodeAddress is empty, call rpcQueryNodesForPlan(rpc, provision.planId, { status: 1 }) and pick from items[]"
     },
@@ -1980,7 +1980,7 @@ section h3 {
 <span class="kw">import</span> { <span class="fn">base</span> } <span class="kw">from</span> <span class="str">'viem/chains'</span><span class="op">;</span>
 <span class="kw">import</span> { <span class="fn">setup</span>, <span class="fn">createWallet</span>, <span class="fn">connect</span>, <span class="fn">disconnect</span>, <span class="fn">rpcQueryNodesForPlan</span>, <span class="fn">createRpcQueryClientWithFallback</span> } <span class="kw">from</span> <span class="str">'blue-js-sdk/ai-path'</span><span class="op">;</span>
 
-<span class="cm">// Fresh machine? setup() auto-downloads V2Ray (no admin) + checks WireGuard</span>
+<span class="cm">// Optional: pre-fetch V2Ray (no admin). connect({ protocol: 'v2ray' }) auto-fetches it anyway.</span>
 <span class="kw">await</span> <span class="fn">setup</span>()<span class="op">;</span>
 
 <span class="cm">// Create a Sentinel wallet (one-time &mdash; save the mnemonic!)</span>
@@ -2048,11 +2048,12 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
   <span class="prop">nodeAddress</span><span class="op">,</span>                                  <span class="cm">// from provision or fallback query</span>
   <span class="prop">subscriptionId</span><span class="op">:</span> String(provision<span class="op">.</span>subscriptionId)<span class="op">,</span>  <span class="cm">// from Step 2</span>
   <span class="prop">feeGranter</span><span class="op">:</span> provision<span class="op">.</span>feeGranter<span class="op">,</span>          <span class="cm">// operator pays gas</span>
+  <span class="prop">protocol</span><span class="op">:</span> <span class="str">'v2ray'</span><span class="op">,</span>                          <span class="cm">// zero admin, zero manual install (Windows)</span>
 })<span class="op">;</span>
 
 <span class="cm">// All traffic now routes through encrypted P2P tunnel</span>
 console<span class="op">.</span><span class="fn">log</span>(<span class="str">`VPN active: ${vpn.ip} via ${vpn.protocol}`</span>)<span class="op">;</span>
-<span class="cm">// { connected: true, ip: '104.234.x.x', protocol: 'wireguard',</span>
+<span class="cm">// { connected: true, ip: '104.234.x.x', protocol: 'v2ray',</span>
 <span class="cm">//   sessionId: '39269345', nodeAddress: 'sentnode1...' }</span>
 
 <span class="cm">// Disconnect also uses fee grant &mdash; 0 tokens needed</span>
@@ -2379,7 +2380,7 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
   <span class="fn">rpcQueryNodesForPlan</span><span class="op">,</span> <span class="fn">createRpcQueryClientWithFallback</span><span class="op">,</span>
 } <span class="kw">from</span> <span class="str">'blue-js-sdk/ai-path'</span><span class="op">;</span>
 
-<span class="cm">// ── Step 0: Fresh machine? Auto-install tunnel binaries (V2Ray needs no admin) ──</span>
+<span class="cm">// ── Step 0 (optional): pre-fetch V2Ray (no admin). connect({ protocol: 'v2ray' }) auto-fetches it anyway ──</span>
 <span class="kw">await</span> <span class="fn">setup</span>()<span class="op">;</span>
 
 <span class="cm">// ── Step 1: Create Sentinel wallet (one-time) ──</span>
@@ -2428,6 +2429,7 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
   <span class="prop">nodeAddress</span><span class="op">,</span>
   <span class="prop">subscriptionId</span><span class="op">:</span> String(provision<span class="op">.</span>subscriptionId)<span class="op">,</span>
   <span class="prop">feeGranter</span><span class="op">:</span> provision<span class="op">.</span>feeGranter<span class="op">,</span>
+  <span class="prop">protocol</span><span class="op">:</span> <span class="str">'v2ray'</span><span class="op">,</span>                          <span class="cm">// zero admin, zero manual install (Windows)</span>
 })<span class="op">;</span>
 
 console<span class="op">.</span><span class="fn">log</span>(<span class="str">`VPN active: ${vpn.ip} via ${vpn.protocol}`</span>)<span class="op">;</span>
@@ -2457,7 +2459,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
   <span class="str">"sentinelTxHash"</span>: <span class="str">"2C1CFE..."</span>,
   <span class="str">"expiresAt"</span>: <span class="str">"2026-05-14T..."</span>,
   <span class="str">"operatorAddress"</span>: <span class="str">"0xCC689D..."</span>,
-  <span class="str">"instructions"</span>: <span class="str">"import { setup, connect } from 'blue-js-sdk/ai-path'; await setup(); /* installs V2Ray automatically if no tunnel binary is present */ await connect({ mnemonic, nodeAddress, subscriptionId, feeGranter })"</span>
+  <span class="str">"instructions"</span>: <span class="str">"import { setup, connect } from 'blue-js-sdk/ai-path'; /* setup() is optional on Windows — connect({ protocol: 'v2ray' }) auto-fetches the V2Ray binary (no admin, ~70% of nodes) */ await connect({ mnemonic, nodeAddress, subscriptionId, feeGranter, protocol: 'v2ray' })"</span>
 }</code></pre>
     </div>
   </div>
