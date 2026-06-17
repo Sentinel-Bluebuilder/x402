@@ -1605,7 +1605,7 @@ section h3 {
 <nav>
   <div class="inner">
     <div class="logo">
-      <span class="brand-mark"><img src="assets/sentinel-shield.png" alt="Sentinel"></span>
+      <span class="brand-mark"><img src="assets/sentinel-shield.svg" alt="Sentinel"></span>
       <span>x</span>402
     </div>
     <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links">
@@ -1628,7 +1628,7 @@ section h3 {
 <section class="hero">
   <div class="container">
     <div class="protocol-badge fade-in">
-      <img src="assets/sentinel-shield.png" alt="" style="width:16px;height:16px;object-fit:contain;display:inline-block;vertical-align:middle;filter:drop-shadow(0 0 4px rgba(30,136,229,0.5));">
+      <img src="assets/sentinel-shield.svg" alt="" style="width:16px;height:16px;object-fit:contain;display:inline-block;vertical-align:middle;filter:drop-shadow(0 0 4px rgba(30,136,229,0.5));">
 
       Live on Base Mainnet
     </div>
@@ -1859,16 +1859,16 @@ section h3 {
 <section id="autonomous">
   <div class="container">
     <h2>Prefer no operator at all?</h2>
-    <p class="desc">There's a second, fully self-funded way onto Sentinel &mdash; the <strong>autonomous</strong> flow. The agent holds its own P2P tokens, picks any node on the network, pays it directly per gigabyte, and manages its own gas. The x402 server is never contacted: no operator, no fee-grant, no subscription. It's a different product with a different trust model, so it now lives on its own dedicated site.</p>
+    <p class="desc">There's a second, fully self-funded way onto Sentinel &mdash; the <strong>autonomous</strong> flow. The agent holds its own P2P tokens, picks any node on the network, pays it directly per gigabyte, and manages its own gas. The x402 server is never contacted: no operator, no fee-grant, no subscription. It has a different trust model, so it lives on its own site.</p>
 
     <div class="callout callout-ok" style="max-width: 760px; margin: 0 auto 28px;">
       <div class="callout-title">&#10003; Verified live on mainnet</div>
-      <p>A funded test agent ran the autonomous flow end-to-end with no operator in the loop: it picked a US node, opened on-chain session <code>45433200</code>, paid <strong>40.19&nbsp;P2P</strong> for a 1&nbsp;GB V2Ray session, and the SDK confirmed the exit IP <code>104.252.19.187</code> through the tunnel &mdash; ~67&nbsp;s start to finish. That 40&nbsp;P2P is the live network median; the cheapest nodes run ~2&nbsp;P2P/GB.</p>
+      <p>A test agent ran the autonomous flow end-to-end with no operator in the loop: it picked a US node, opened on-chain session <code>45433200</code>, paid <strong>40.19&nbsp;P2P</strong> for a 1&nbsp;GB V2Ray session, and the SDK confirmed the exit IP <code>104.252.19.187</code> through the tunnel &mdash; ~67&nbsp;s start to finish. That 40&nbsp;P2P is the live network median; the cheapest nodes run ~2&nbsp;P2P/GB.</p>
     </div>
 
     <div style="text-align: center; margin: 0 auto 8px; max-width: 760px;">
       <a href="https://autonomous.sentinel.co" target="_blank" rel="noopener" class="cta-primary">Read the autonomous guide at autonomous.sentinel.co &rarr;</a>
-      <p class="desc" style="margin-top: 16px; font-size: 13px;">Full self-funding recipe (buy P2P by API), the verified <code>connect()</code> reference, the V2Ray SOCKS-proxy footgun, and per-OS notes &mdash; all on the dedicated site. Agent-readable summary: <a href="https://autonomous.sentinel.co/llms.txt" target="_blank" rel="noopener">autonomous.sentinel.co/llms.txt</a>.</p>
+      <p class="desc" style="margin-top: 16px; font-size: 13px;">The verified <code>connect()</code> reference, the V2Ray SOCKS-proxy footgun, and per-OS notes &mdash; all on the dedicated site. Agent-readable summary: <a href="https://autonomous.sentinel.co/llms.txt" target="_blank" rel="noopener">autonomous.sentinel.co/llms.txt</a>.</p>
     </div>
   </div>
 </section>
@@ -2117,8 +2117,8 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
 <!-- ─── Security ─── -->
 <section id="security">
   <div class="container">
-    <h2>Trust nothing. Verify everything.</h2>
-    <p class="desc">The x402 managed flow is designed so trust is unnecessary. Your keys, your tunnel, your traffic. We provision the subscription and the gas grant &mdash; nothing more.</p>
+    <h2>What you trust, and what you don't</h2>
+    <p class="desc">In the x402 managed flow you trust the operator for one thing: provisioning the subscription and the gas grant. Your keys stay local, the tunnel is direct, and the operator never sees your traffic.</p>
 
     <div class="security-grid">
       <div class="security-item">
@@ -2127,7 +2127,7 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
       </div>
       <div class="security-item">
         <h4>Tunnel is always agent-to-node</h4>
-        <p>The WireGuard/V2Ray handshake is direct between the agent and the VPN node. We never see the tunnel credentials, encryption keys, or traffic. Ever.</p>
+        <p>The WireGuard/V2Ray handshake is direct between the agent and the VPN node. The operator never sees the tunnel credentials, encryption keys, or traffic.</p>
       </div>
       <div class="security-item">
         <h4>Self-hosted facilitator</h4>
