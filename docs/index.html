@@ -1776,7 +1776,6 @@ section h3 {
 <!-- ─── Pricing ─── -->
 <section id="pricing">
   <div class="container">
-    <div class="section-label">Pricing</div>
     <h2>Pay per day. No subscriptions.</h2>
     <p class="desc">Pricing for the x402 Managed Plan. Agents pay upfront for exactly the days they need. USDC on Base, settled automatically by the x402 protocol. On the separate Autonomous path, agents hold P2P and pay nodes at their posted per-GB / per-hour rates.</p>
 
@@ -1812,7 +1811,6 @@ section h3 {
 <!-- ─── The x402 Path (this site) ─── -->
 <section id="flow">
   <div class="container">
-    <div class="section-label">The x402 Path</div>
     <h2>One paid request, fully provisioned</h2>
     <p class="desc">This site is the x402 <strong>managed</strong> path: the agent pays USDC over HTTP 402 and the operator provisions everything &mdash; subscription share and a Sentinel gas grant &mdash; so the agent connects with one command, holding zero P2P tokens and paying zero gas. Just an EVM key with USDC on Base.</p>
 
@@ -1863,7 +1861,6 @@ section h3 {
 <!-- ─── Managed Plan Flow Detail (x402 — the primary path) ─── -->
 <section id="managed-flow">
   <div class="container">
-    <div class="section-label">The x402 Path</div>
     <h2>How x402 subscription works</h2>
     <p class="desc">Live at <code>https://x402.sentinel.co</code>. Agent sends one HTTP request. Payment, settlement, subscription provisioning, and fee granting all happen automatically.</p>
 
@@ -1912,7 +1909,6 @@ section h3 {
 <!-- ─── Autonomous Path moved to its own site (autonomous.sentinel.co) ─── -->
 <section id="autonomous">
   <div class="container">
-    <div class="section-label">The Autonomous Path</div>
     <h2>Prefer no operator at all?</h2>
     <p class="desc">There's a second, fully self-funded way onto Sentinel &mdash; the <strong>autonomous</strong> flow. The agent holds its own P2P tokens, picks any node on the network, pays it directly per gigabyte, and manages its own gas. The x402 server is never contacted: no operator, no fee-grant, no subscription. It's a different product with a different trust model, so it now lives on its own dedicated site.</p>
 
@@ -1933,7 +1929,6 @@ section h3 {
 <!-- ─── Code Examples ─── -->
 <section id="code">
   <div class="container">
-    <div class="section-label">Integration</div>
     <h2>Integrate the x402 managed flow</h2>
     <p class="desc">Let the x402 server handle everything with <code>@x402/fetch</code> &mdash; the agent pays USDC on Base and connects with one call, no P2P and no gas. Prefer the fully self-funded path where the agent pays nodes directly? That lives at <a href="https://autonomous.sentinel.co" target="_blank" rel="noopener">autonomous.sentinel.co</a>.</p>
 
@@ -2173,7 +2168,6 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
 <!-- ─── Security ─── -->
 <section id="security">
   <div class="container">
-    <div class="section-label">Security</div>
     <h2>Trust nothing. Verify everything.</h2>
     <p class="desc">The x402 managed flow is designed so trust is unnecessary. Your keys, your tunnel, your traffic. We provision the subscription and the gas grant &mdash; nothing more.</p>
 
@@ -2203,7 +2197,6 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
 <!-- ─── Chains ─── -->
 <section id="chains">
   <div class="container">
-    <div class="section-label">Supported Chains</div>
     <h2>Live on Base mainnet</h2>
     <p class="desc">USDC payments settled via EIP-3009 <code>transferWithAuthorization</code> &mdash; no custom contract, no approve step. Native USDC on Base.</p>
 
@@ -2253,7 +2246,6 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
 <!-- ─── API ─── -->
 <section id="api">
   <div class="container">
-    <div class="section-label">API Reference</div>
     <h2>Endpoints</h2>
     <p class="desc">All <code>/vpn/connect/*</code> routes return HTTP 402 until USDC payment is settled. Free endpoints require no payment.</p>
 
@@ -2304,7 +2296,6 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
 <!-- ─── Complete E2E Example ─── -->
 <section id="e2e">
   <div class="container">
-    <div class="section-label">Complete Example</div>
     <h2>End-to-end: USDC to VPN tunnel</h2>
     <p class="desc">Everything in one script. Pay USDC on Base, get provisioned, connect to VPN, verify IP changed, disconnect. Zero P2P tokens needed.</p>
 
@@ -2414,7 +2405,6 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 <!-- ─── Fee Grant Reference ─── -->
 <section id="feegrant">
   <div class="container">
-    <div class="section-label">Fee Grant</div>
     <h2>How zero-gas works</h2>
     <p class="desc">When x402 provisions an agent, it creates an <code>AllowedMsgAllowance</code> fee grant on the Sentinel chain. The operator pays gas for the agent's session operations.</p>
 
@@ -2444,7 +2434,6 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 <!-- ─── Documentation Links ─── -->
 <section id="docs">
   <div class="container">
-    <div class="section-label">Documentation</div>
     <h2>Go deeper</h2>
     <p class="desc">The landing page covers the essentials. For production integration, error handling edge cases, and architectural details:</p>
 
@@ -2474,7 +2463,6 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 <!-- ─── Builder Configuration ─── -->
 <section id="builder-config">
   <div class="container">
-    <div class="section-label">For Builders</div>
     <h2>Deploy your own x402 VPN server</h2>
     <p class="desc">All operator-specific variables are in <code>.env</code>. Change these to deploy your own instance with your own wallet, plan, and pricing.</p>
 
