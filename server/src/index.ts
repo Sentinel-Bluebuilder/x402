@@ -578,6 +578,11 @@ app.get('/manifest', (_req, res) => {
       readme: 'https://github.com/Sentinel-Bluebuilder/x402',
       manifesto: 'https://github.com/Sentinel-Bluebuilder/x402/blob/master/MANIFESTO.md',
     },
+    seeAlso: {
+      autonomous: 'https://autonomous.sentinel.co',
+      autonomousLlmsTxt: 'https://autonomous.sentinel.co/llms.txt',
+      note: 'Fully self-funded path: the agent holds its own P2P and pays nodes directly per-GB. No x402 server, no operator. Separate site.',
+    },
   });
 });
 
