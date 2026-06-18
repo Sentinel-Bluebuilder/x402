@@ -109,7 +109,17 @@ const vpn = await connect({
   protocol: 'v2ray', // zero admin, zero manual install — Windows zero-prereq path.
                      // Omit only if you have admin and want WireGuard nodes (faster, ~30% of network).
 });
-// vpn.connected === true
+// vpn => { connected, ip, protocol, sessionId, nodeAddress, socksPort }
+// vpn.ip is the exit IP, verified THROUGH the tunnel by the SDK.
+
+// IMPORTANT (v2ray only): protocol: 'v2ray' is a userspace SOCKS5 proxy, NOT a system route.
+// A plain fetch() still exits on your real IP — that's expected, not a failure (vpn.ip already
+// proves routing). Send your traffic through vpn.socksPort with a SOCKS agent, or use
+// protocol: 'wireguard' for a transparent full-system route. socksPort is DYNAMIC — read it
+// from the connect() result, never hardcode.
+import { SocksProxyAgent } from 'socks-proxy-agent';
+const proxy = new SocksProxyAgent(`socks5h://127.0.0.1:${vpn.socksPort}`);
+const data = await fetch('https://api.example.com/sensitive', { dispatcher: proxy }); // exits on vpn.ip
 ```
 
 ## macOS & Linux — native CLI connect

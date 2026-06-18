@@ -57,7 +57,8 @@
       "connectMacLinux": "Native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest, needs Go 1.24+). The CLI does NOT bundle a tunnel: it shells out to wg-quick (install wireguard-tools: apt/brew/pacman) for WireGuard nodes, or v2ray on PATH for V2Ray nodes. Most nodes are WireGuard, so install wireguard-tools at minimum; sudo is needed to bring the interface up. Then: (1) printf '%s\\n\\n' \"$MNEMONIC\" | sentinel-dvpncli keys add agent --keyring.backend test (keys add is interactive: line 1 = mnemonic, blank line 2 = default passphrase; there is no --recover flag); (2) sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test; (3) sessionId = sentinel-dvpncli query sessions --account-addr <sent1...> --subscription-id <subscriptionId> --output-format json (newest entry); (4) sentinel-dvpncli connect <sessionId>. Exception: Fedora (SELinux blocks VPNs).",
       "connectWindows": "Zero-prereq path: pass protocol: 'v2ray' to connect() — no admin, no manual install. V2Ray is a userspace SOCKS5 proxy; connect() auto-downloads the v2ray binary to ~/.sentinel-sdk/bin on first use (no admin), covering ~70% of nodes. setup() is optional (it just pre-fetches V2Ray). WireGuard nodes (the other ~30%, faster) need admin ONCE for the MSI install + tunnel service; the SDK checks admin BEFORE payment and refuses a WireGuard node when not elevated, so no funds are wasted. If you cannot elevate, stay on protocol: 'v2ray'.",
       "walletCreate": "createWallet() from blue-js-sdk/ai-path → { address, mnemonic }",
-      "connect": "Windows JS tunnel: connect({ mnemonic, subscriptionId, feeGranter, nodeAddress, protocol: 'v2ray' }) → { connected, ip, protocol }. protocol: 'v2ray' = zero admin, zero manual install (auto-downloaded binary, ~70% of nodes) — the recommended Windows path. Omit protocol only if you have admin and want WireGuard nodes too. On macOS/Linux use connectMacLinux (native CLI) instead.",
+      "connect": "Windows JS tunnel: connect({ mnemonic, subscriptionId, feeGranter, nodeAddress, protocol: 'v2ray' }) → { connected, ip, protocol, sessionId, nodeAddress, socksPort }. protocol: 'v2ray' = zero admin, zero manual install (auto-downloaded binary, ~70% of nodes) — the recommended Windows path. Omit protocol only if you have admin and want WireGuard nodes too. On macOS/Linux use connectMacLinux (native CLI) instead.",
+      "v2rayCaveat": "protocol: 'v2ray' is a userspace SOCKS5 proxy, NOT a system route. A plain fetch() on the OS default route still shows the real IP — that is expected, not a failure. vpn.ip already proves routing (checked THROUGH the tunnel by the SDK). To route your own traffic, send it through vpn.socksPort with a SOCKS agent, or pass protocol: 'wireguard' for transparent system-wide routing. socksPort is dynamic — always read it from the connect() result, never hardcode.",
       "disconnect": "JS: disconnect() ends session on-chain (fee-granted), tears down tunnel. CLI: sentinel-dvpncli tx session-cancel <sessionId>",
       "nodeFallback": "If provision.nodeAddress is empty, call rpcQueryNodesForPlan(rpc, provision.planId, { status: 1 }) and pick from items[]"
     },
@@ -1992,13 +1993,23 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
   <span class="prop">protocol</span><span class="op">:</span> <span class="str">'v2ray'</span><span class="op">,</span>                          <span class="cm">// zero admin, zero manual install (Windows)</span>
 })<span class="op">;</span>
 
-<span class="cm">// All traffic now routes through encrypted P2P tunnel</span>
+<span class="cm">// vpn.ip is the exit IP verified THROUGH the tunnel by the SDK</span>
 console<span class="op">.</span><span class="fn">log</span>(<span class="str">`VPN active: ${vpn.ip} via ${vpn.protocol}`</span>)<span class="op">;</span>
 <span class="cm">// { connected: true, ip: '104.234.x.x', protocol: 'v2ray',</span>
-<span class="cm">//   sessionId: '39269345', nodeAddress: 'sentnode1...' }</span>
+<span class="cm">//   sessionId: '39269345', nodeAddress: 'sentnode1...',</span>
+<span class="cm">//   socksPort: 11375 }  &larr; v2ray: route your traffic through THIS port (dynamic &mdash; never hardcode)</span>
 
 <span class="cm">// Disconnect also uses fee grant &mdash; 0 tokens needed</span>
 <span class="kw">await</span> <span class="fn">disconnect</span>()<span class="op">;</span></code></pre>
+    </div>
+
+    <div class="callout callout-warn" style="margin-bottom: 24px;">
+      <div class="callout-title">&#9888; V2Ray is a SOCKS5 proxy, not a system route</div>
+      <p><code>protocol: 'v2ray'</code> (the zero-admin default above) brings up a userspace SOCKS5 proxy on <code>vpn.socksPort</code> &mdash; it does <strong>not</strong> change your machine's default route. A plain <code>fetch()</code> still exits on your real IP. That's expected, not a failure: <code>vpn.ip</code> already proves the tunnel works (the SDK verified it <em>through</em> the proxy). To route your own traffic, point it at <code>vpn.socksPort</code> with a SOCKS agent, or pass <code>protocol: 'wireguard'</code> for a transparent system-wide route (WireGuard nodes need admin once on Windows). <code>socksPort</code> is dynamic &mdash; always read it from the <code>connect()</code> result, never hardcode it.</p>
+      <pre style="margin-top: 12px;"><code><span class="cm">// Route a request through the v2ray tunnel (Node):</span>
+<span class="kw">import</span> { SocksProxyAgent } <span class="kw">from</span> <span class="str">'socks-proxy-agent'</span><span class="op">;</span>
+<span class="kw">const</span> agent <span class="op">=</span> <span class="kw">new</span> <span class="fn">SocksProxyAgent</span>(<span class="str">`socks5h://127.0.0.1:${vpn.socksPort}`</span>)<span class="op">;</span>
+<span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.ipify.org'</span><span class="op">,</span> { <span class="prop">dispatcher</span><span class="op">:</span> agent })<span class="op">;</span> <span class="cm">// &rarr; vpn.ip</span></code></pre>
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">
@@ -2317,11 +2328,14 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
   <span class="prop">protocol</span><span class="op">:</span> <span class="str">'v2ray'</span><span class="op">,</span>                          <span class="cm">// zero admin, zero manual install (Windows)</span>
 })<span class="op">;</span>
 
-console<span class="op">.</span><span class="fn">log</span>(<span class="str">`VPN active: ${vpn.ip} via ${vpn.protocol}`</span>)<span class="op">;</span>
-<span class="cm">// All traffic now through encrypted P2P tunnel</span>
+console<span class="op">.</span><span class="fn">log</span>(<span class="str">`VPN active: ${vpn.ip} via ${vpn.protocol}`</span>)<span class="op">;</span> <span class="cm">// vpn.ip = exit IP, verified through the tunnel</span>
 
 <span class="cm">// ── Step 6: Do private work ──</span>
-<span class="kw">const</span> data <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.example.com/sensitive'</span>)<span class="op">;</span>
+<span class="cm">// v2ray is a userspace SOCKS5 proxy (not a system route): send traffic through</span>
+<span class="cm">// vpn.socksPort, else a plain fetch() exits on your real IP. (wireguard = full route, no agent needed.)</span>
+<span class="kw">import</span> { SocksProxyAgent } <span class="kw">from</span> <span class="str">'socks-proxy-agent'</span><span class="op">;</span>
+<span class="kw">const</span> proxy <span class="op">=</span> <span class="kw">new</span> <span class="fn">SocksProxyAgent</span>(<span class="str">`socks5h://127.0.0.1:${vpn.socksPort}`</span>)<span class="op">;</span>
+<span class="kw">const</span> data <span class="op">=</span> <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.example.com/sensitive'</span><span class="op">,</span> { <span class="prop">dispatcher</span><span class="op">:</span> proxy })<span class="op">;</span>
 
 <span class="cm">// ── Step 7: Disconnect (also uses fee grant) ──</span>
 <span class="kw">await</span> <span class="fn">disconnect</span>()<span class="op">;</span></code></pre>
@@ -2344,7 +2358,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
   <span class="str">"sentinelTxHash"</span>: <span class="str">"2C1CFE..."</span>,
   <span class="str">"expiresAt"</span>: <span class="str">"2026-05-14T..."</span>,
   <span class="str">"operatorAddress"</span>: <span class="str">"0xCC689D..."</span>,
-  <span class="str">"instructions"</span>: <span class="str">"import { setup, connect } from 'blue-js-sdk/ai-path'; /* setup() is optional on Windows — connect({ protocol: 'v2ray' }) auto-fetches the V2Ray binary (no admin, ~70% of nodes) */ await connect({ mnemonic, nodeAddress, subscriptionId, feeGranter, protocol: 'v2ray' })"</span>
+  <span class="str">"instructions"</span>: <span class="str">"import { setup, connect } from 'blue-js-sdk/ai-path'; /* setup() is optional on Windows — connect({ protocol: 'v2ray' }) auto-fetches the V2Ray binary (no admin, ~70% of nodes) */ const vpn = await connect({ mnemonic, nodeAddress, subscriptionId, feeGranter, protocol: 'v2ray' }); /* returns { connected, ip, protocol, sessionId, nodeAddress, socksPort }. v2ray is a userspace SOCKS5 proxy: route your traffic through vpn.socksPort (dynamic, never hardcode) or use protocol: 'wireguard' for a full system route. */"</span>
 }</code></pre>
     </div>
   </div>
