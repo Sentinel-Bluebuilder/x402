@@ -114,12 +114,19 @@ const vpn = await connect({
 
 // IMPORTANT (v2ray only): protocol: 'v2ray' is a userspace SOCKS5 proxy, NOT a system route.
 // A plain fetch() still exits on your real IP — that's expected, not a failure (vpn.ip already
-// proves routing). Send your traffic through vpn.socksPort with a SOCKS agent, or use
-// protocol: 'wireguard' for a transparent full-system route. socksPort is DYNAMIC — read it
-// from the connect() result, never hardcode.
+// proves routing). Three ways to route your own traffic:
+//   (A) per-request / split tunnel — point a SOCKS agent at vpn.socksPort (shown below).
+//   (B) whole device — pass systemProxy: true to connect(); the SDK sets the OS proxy
+//       (Windows registry / macOS networksetup / Linux gsettings), restored on disconnect().
+//   (C) kernel full tunnel — use protocol: 'wireguard' for a transparent network-layer route.
+// socksPort is DYNAMIC — read it from the connect() result, never hardcode.
+// CRITICAL: Node's native fetch() IGNORES SOCKS5 agents and leaks the real IP — use axios.
 import { SocksProxyAgent } from 'socks-proxy-agent';
+import axios from 'axios';
 const proxy = new SocksProxyAgent(`socks5h://127.0.0.1:${vpn.socksPort}`);
-const data = await fetch('https://api.example.com/sensitive', { dispatcher: proxy }); // exits on vpn.ip
+const { data } = await axios.get('https://api.example.com/sensitive', {
+  httpAgent: proxy, httpsAgent: proxy, adapter: 'http',
+}); // exits on vpn.ip
 ```
 
 ## macOS & Linux — native CLI connect
