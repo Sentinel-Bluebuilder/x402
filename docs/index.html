@@ -54,10 +54,10 @@
       "rpcFallbacks": ["https://rpc.sentinel.co:443", "https://sentinel-rpc.polkachu.com", "https://rpc.mathnodes.com", "https://sentinel-rpc.publicnode.com", "https://rpc.sentinel.quokkastake.io", "https://rpc.sentinel.suchnode.net:443"],
       "lcdFallbacks": ["https://lcd.sentinel.co", "https://sentinel-api.polkachu.com", "https://api.sentinel.quokkastake.io", "https://sentinel-rest.publicnode.com", "https://api.sentinel.suchnode.net"],
       "platforms": "Payment is identical everywhere; only the connect step differs by OS.",
-      "connectMacLinux": "Native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest, needs Go 1.24+). The CLI does NOT bundle a tunnel: it shells out to wg-quick (install wireguard-tools: apt/brew/pacman) for WireGuard nodes, or v2ray on PATH for V2Ray nodes. Most nodes are WireGuard, so install wireguard-tools at minimum; sudo is needed to bring the interface up. Then: (1) printf '%s\\n\\n' \"$MNEMONIC\" | sentinel-dvpncli keys add agent --keyring.backend test (keys add is interactive: line 1 = mnemonic, blank line 2 = default passphrase; there is no --recover flag); (2) sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test; (3) sessionId = sentinel-dvpncli query sessions --account-addr <sent1...> --subscription-id <subscriptionId> --output-format json (newest entry); (4) sentinel-dvpncli connect <sessionId>. Exception: Fedora (SELinux blocks VPNs).",
-      "connectWindows": "Zero-prereq path: pass protocol: 'v2ray' to connect() — no admin, no manual install. V2Ray is a userspace SOCKS5 proxy; connect() auto-downloads the v2ray binary to ~/.sentinel-sdk/bin on first use (no admin), covering ~70% of nodes. setup() is optional (it just pre-fetches V2Ray). WireGuard nodes (the other ~30%, faster) need admin ONCE for the MSI install + tunnel service; the SDK checks admin BEFORE payment and refuses a WireGuard node when not elevated, so no funds are wasted. If you cannot elevate, stay on protocol: 'v2ray'.",
+      "connectMacLinux": "Alternative for WireGuard nodes or Node-less environments — NOT required for V2Ray (the JS connect() above covers V2Ray on macOS and Linux too). Native CLI sentinel-dvpncli (go install github.com/sentinel-official/sentinel-dvpncli@latest, needs Go 1.24+). The CLI does NOT bundle a tunnel: it shells out to wg-quick (install wireguard-tools: apt/brew/pacman) for WireGuard nodes, or v2ray on PATH for V2Ray nodes. Most nodes are WireGuard, so install wireguard-tools at minimum; sudo is needed to bring the interface up. Then: (1) printf '%s\\n\\n' \"$MNEMONIC\" | sentinel-dvpncli keys add agent --keyring.backend test (keys add is interactive: line 1 = mnemonic, blank line 2 = default passphrase; there is no --recover flag); (2) sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test; (3) sessionId = sentinel-dvpncli query sessions --account-addr <sent1...> --subscription-id <subscriptionId> --output-format json (newest entry); (4) sentinel-dvpncli connect <sessionId>. Exception: Fedora (SELinux blocks VPNs).",
+      "connectV2Ray": "Cross-platform zero-prereq path (Windows, macOS, Linux): pass protocol: 'v2ray' to connect() — no admin, no manual install on any of the three. V2Ray is a userspace SOCKS5 proxy; connect() auto-downloads the v2ray binary to ~/.sentinel-sdk/bin on first use (no admin), with SHA256-verified binaries for win32, darwin x64/arm64 and linux x64/arm64, covering ~70% of nodes. setup() is optional (it just pre-fetches V2Ray). Add systemProxy: true for whole-device routing (Windows registry / macOS networksetup / Linux gsettings; no-op on headless/non-GNOME Linux but socksPort routing still works). WireGuard nodes (the other ~30%, faster) need admin ONCE on Windows for the MSI install + tunnel service; the SDK checks admin BEFORE payment and refuses a WireGuard node when not elevated, so no funds are wasted. If you cannot elevate, stay on protocol: 'v2ray'.",
       "walletCreate": "createWallet() from blue-js-sdk/ai-path → { address, mnemonic }",
-      "connect": "Windows JS tunnel: connect({ mnemonic, subscriptionId, feeGranter, nodeAddress, protocol: 'v2ray' }) → { connected, ip, protocol, sessionId, nodeAddress, socksPort }. protocol: 'v2ray' = zero admin, zero manual install (auto-downloaded binary, ~70% of nodes) — the recommended Windows path. Add systemProxy: true to encrypt the whole device; omit it to route only what you send through socksPort. Omit protocol only if you have admin and want WireGuard nodes too. On macOS/Linux use connectMacLinux (native CLI) instead.",
+      "connect": "Windows JS tunnel: connect({ mnemonic, subscriptionId, feeGranter, nodeAddress, protocol: 'v2ray' }) → { connected, ip, protocol, sessionId, nodeAddress, socksPort }. protocol: 'v2ray' = zero admin, zero manual install (auto-downloaded binary, ~70% of nodes). The JS connect() V2Ray path is cross-platform — the same binary auto-downloads on Windows, macOS (x64/arm64) and Linux (x64/arm64), so this exact call works on all three. Add systemProxy: true to encrypt the whole device (SDK sets the OS proxy: Windows registry / macOS networksetup / Linux gsettings — on headless or non-GNOME Linux that step is a no-op, but per-request socksPort routing still works); omit it to route only what you send through socksPort. Omit protocol only if you have admin and want WireGuard nodes too. The native CLI (connectMacLinux) is an alternative on macOS/Linux, mainly for WireGuard or Node-less environments — it is not required for V2Ray.",
       "v2rayCaveat": "protocol: 'v2ray' runs a SOCKS5 proxy and can encrypt the whole device or only chosen requests. Whole device: pass systemProxy: true to connect() — the SDK sets the system proxy (Windows registry / macOS networksetup / Linux gsettings), all traffic routes through the node, restored on disconnect(). Per-request (split tunnel): omit systemProxy and send chosen requests through vpn.socksPort; CRITICAL — Node's native fetch() ignores SOCKS5 agents and exits on the real IP, so use axios with SocksProxyAgent and adapter:'http' (httpAgent + httpsAgent), not fetch(). WireGuard: pass protocol: 'wireguard' for a kernel-level full tunnel. socksPort is dynamic — read it from the connect() result, never hardcode. vpn.ip is the exit IP, already verified through the tunnel by the SDK.",
       "disconnect": "JS: disconnect() ends session on-chain (fee-granted), tears down tunnel. CLI: sentinel-dvpncli tx session-cancel <sessionId>",
       "nodeFallback": "If provision.nodeAddress is empty, call rpcQueryNodesForPlan(rpc, provision.planId, { status: 1 }) and pick from items[]"
@@ -1644,13 +1644,13 @@ section h3 {
         </span>
         <span class="os-label">Windows <span class="os-status">live</span></span>
       </div>
-      <div class="os-chip live" title="Live — native CLI connect; install wireguard-tools (wg-quick) first">
+      <div class="os-chip live" title="V2Ray via the same JS connect() (binary auto-downloads); native CLI is the WireGuard alternative (install wireguard-tools)">
         <span class="os-logo" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 1.3c.1 1.1-.3 2.2-1 3-.6.8-1.7 1.4-2.7 1.4-.2-1.1.3-2.2.9-2.9.8-.9 2-1.5 2.8-1.5Zm3.6 16.4c-.5 1.2-.8 1.7-1.4 2.8-.9 1.5-2.2 3.4-3.9 3.5-1.5 0-1.8-.9-3.8-.9-1.9 0-2.3.9-3.8.9-1.6-.1-2.9-1.8-3.8-3.3-2.5-4.3-2.7-9.4-1.2-12.1 1.1-1.9 2.8-3.1 4.4-3.1 1.5 0 2.5.9 3.8.9 1.3 0 2.1-.9 3.9-.9 1.4 0 3 .8 4.1 2.2-3.6 2-3 7.2 1.7 10Z"/></svg>
         </span>
         <span class="os-label">macOS <span class="os-status">live</span></span>
       </div>
-      <div class="os-chip live" title="Live — native CLI connect; install wireguard-tools first (except Fedora: SELinux blocks VPNs)">
+      <div class="os-chip live" title="V2Ray via the same JS connect() (binary auto-downloads); native CLI is the WireGuard alternative (except Fedora: SELinux blocks VPNs)">
         <span class="os-logo" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 2c-2 0-3.3 1.6-3.3 4 0 1 .2 1.9.4 2.5-.7.5-1.3 1.4-1.8 2.6-.7 1.6-1 3.8-1.7 5.2-.5 1-1.5 1.5-2 2.2-.4.4-.5 1.3.4 1.6.7.2 1.3-.2 1.9-.6.4-.3.9-.4 1.2-.4.4.1.5.5.6 1 .1 1.3 1 2.2 2.9 2.4 1.8.2 4-.4 5.7-.4 1 0 1.7.1 2.3.1.6 0 1-.5 1-1 0-.5-.4-.9-.9-1.3-1.1-1-1.4-2.3-1.8-4-.4-1.6-.9-3.5-2.3-4.7.4-.8.6-1.7.6-2.7 0-2.3-1.3-4-3.2-4Zm-1 3.3c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Zm2.1 0c.4 0 .6.5.6 1s-.3 1-.6 1-.7-.5-.7-1 .3-1 .7-1Z"/></svg>
         </span>
@@ -2027,11 +2027,12 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 
     <div class="code-block" style="margin-bottom: 24px;">
       <div class="bar">
-        <div class="label">Step 3 &mdash; macOS &amp; Linux: connect via native CLI</div>
+        <div class="label">Step 3 &mdash; macOS &amp; Linux: WireGuard via native CLI (optional)</div>
       </div>
-      <pre><code><span class="cm">// Payment (Steps 0-2 above) is identical. macOS &amp; Linux skip the JS connect()</span>
-<span class="cm">// and use Sentinel's native CLI instead. Unlike Windows, the CLI does NOT bundle a tunnel:</span>
-<span class="cm">// it shells out to wg-quick, so install wireguard-tools first (apt/brew/pacman). Four commands.</span>
+      <pre><code><span class="cm">// V2Ray works the SAME on macOS &amp; Linux: the JS connect({ protocol: 'v2ray' }) above runs</span>
+<span class="cm">// as-is (the binary auto-downloads for darwin/linux too). Use this CLI only for WireGuard</span>
+<span class="cm">// nodes or Node-less environments. Payment (Steps 0-2) is identical. The CLI does NOT bundle</span>
+<span class="cm">// a tunnel: it shells out to wg-quick, so install wireguard-tools first (apt/brew/pacman).</span>
 <span class="cm">// CLI: https://github.com/sentinel-official/sentinel-dvpncli</span>
 
 <span class="cm">// Install once (Go 1.24+):</span>
@@ -2327,8 +2328,9 @@ client<span class="op">.</span><span class="fn">register</span>(<span class="str
 }
 
 <span class="cm">// ── Step 5: Connect to VPN (0 gas, 0 P2P) ──</span>
-<span class="cm">// This connect() is the Windows path. On macOS/Linux use the native CLI instead</span>
-<span class="cm">// (install wireguard-tools first — the CLI shells out to wg-quick, it bundles no tunnel):</span>
+<span class="cm">// This connect() is cross-platform: protocol: 'v2ray' runs the SAME on Windows, macOS</span>
+<span class="cm">// and Linux (the binary auto-downloads for each). The native CLI below is only an</span>
+<span class="cm">// alternative for WireGuard nodes or Node-less environments — not a macOS/Linux requirement:</span>
 <span class="cm">//   printf '%s\n\n' "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test</span>
 <span class="cm">//   sentinel-dvpncli tx session-start &lt;nodeAddress&gt; --subscription-id &lt;id&gt; --tx.fee-granter-addr &lt;feeGranter&gt; --tx.from-name agent --keyring.backend test</span>
 <span class="cm">//   sessionId=$(sentinel-dvpncli query sessions --account-addr &lt;sent1...&gt; --subscription-id &lt;id&gt; --output-format json | jq '.result[-1].id')</span>
