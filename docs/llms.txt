@@ -181,7 +181,7 @@ clean down sequence on exit.
 ## Autonomous flow — separate site
 
 There is a second, fully self-funded path onto Sentinel where the agent holds its own P2P, picks
-any node, and pays it directly per-GB — no x402 server, no operator, no fee-grant, no subscription.
+any node, and pays it directly — no operator, no fee-grant, no subscription.
 That path lives on its own dedicated site and is NOT served by x402. If you want zero
 intermediaries (and are willing to hold P2P + pay your own gas), read the autonomous guide and its
 agent-readable summary instead: https://autonomous.sentinel.co — https://autonomous.sentinel.co/llms.txt
