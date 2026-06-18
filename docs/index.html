@@ -2008,7 +2008,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
       <p><code>protocol: 'v2ray'</code> runs a SOCKS5 proxy on <code>vpn.socksPort</code>. It can encrypt the entire device or only the requests you choose. Pick one:</p>
       <ul style="margin: 10px 0 12px 18px; line-height: 1.7;">
         <li><strong>Whole device.</strong> Pass <code>systemProxy: true</code> to <code>connect()</code>. The SDK sets the system proxy (Windows registry / macOS <code>networksetup</code> / Linux gsettings) and all traffic routes through the node. The original proxy is restored on <code>disconnect()</code>.</li>
-        <li><strong>Per-request (split tunnel).</strong> Omit <code>systemProxy</code> and send only the requests you choose through <code>vpn.socksPort</code>. Other traffic (chain, RPC, npm) stays direct and fast.</li>
+        <li><strong>Per-request (split tunnel).</strong> Omit <code>systemProxy</code> and send only the requests you choose through <code>vpn.socksPort</code>. Other traffic (chain, RPC, npm) stays direct and fast. Use <code>socks5h://</code> (not <code>socks5://</code>) so DNS resolves at the exit node, preventing a DNS leak.</li>
         <li><strong>WireGuard.</strong> Pass <code>protocol: 'wireguard'</code> for a kernel-level full tunnel (admin once on Windows).</li>
       </ul>
       <p><strong>Two facts that catch agents:</strong> (1) For per-request routing, Node's native <code>fetch()</code> ignores SOCKS5 agents and exits on the real IP &mdash; use <code>axios</code> with <code>SocksProxyAgent</code> and <code>adapter: 'http'</code>. (2) <code>socksPort</code> is dynamic &mdash; read it from the <code>connect()</code> result, never hardcode it. <code>vpn.ip</code> is the exit IP, already verified through the tunnel by the SDK.</p>
@@ -2022,6 +2022,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 <span class="kw">const</span> res <span class="op">=</span> <span class="kw">await</span> axios<span class="op">.</span><span class="fn">get</span>(<span class="str">'https://api.ipify.org'</span><span class="op">,</span> {
   <span class="prop">httpAgent</span><span class="op">:</span> proxy<span class="op">,</span> <span class="prop">httpsAgent</span><span class="op">:</span> proxy<span class="op">,</span> <span class="prop">adapter</span><span class="op">:</span> <span class="str">'http'</span><span class="op">,</span>
 })<span class="op">;</span> <span class="cm">// res.data === vpn.ip</span></code></pre>
+      <p style="margin-top: 12px; opacity: 0.85;"><strong>Verified live (Windows).</strong> Split tunnel was tested end-to-end on a US V2Ray node (session 45984926): the <code>axios</code>+<code>SocksProxyAgent</code> request returned the exit IP <code>45.38.249.7</code> while a plain <code>fetch()</code> on the same machine still returned the host IP <code>67.169.16.153</code> &mdash; only the routed request changed IP, and the native <code>fetch()</code> footgun is real.</p>
     </div>
 
     <div class="code-block" style="margin-bottom: 24px;">

@@ -119,7 +119,10 @@ const vpn = await connect({
 //   WireGuard      — use protocol: 'wireguard' for a kernel-level full tunnel.
 // socksPort is DYNAMIC — read it from the connect() result, never hardcode.
 // vpn.ip is the exit IP, already verified through the tunnel by the SDK.
+// Use socks5h:// (not socks5://) so DNS resolves at the exit node — prevents a DNS leak.
 // CRITICAL (per-request): Node's native fetch() ignores SOCKS5 agents and exits on the real IP — use axios.
+// Verified live on Windows (session 45984926): the axios+SocksProxyAgent request exited on the node IP
+// while a plain fetch() on the same machine stayed on the host IP — only the routed request changed IP.
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import axios from 'axios';
 const proxy = new SocksProxyAgent(`socks5h://127.0.0.1:${vpn.socksPort}`);
