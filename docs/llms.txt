@@ -112,15 +112,14 @@ const vpn = await connect({
 // vpn => { connected, ip, protocol, sessionId, nodeAddress, socksPort }
 // vpn.ip is the exit IP, verified THROUGH the tunnel by the SDK.
 
-// IMPORTANT (v2ray only): protocol: 'v2ray' is a userspace SOCKS5 proxy, NOT a system route.
-// A plain fetch() still exits on your real IP — that's expected, not a failure (vpn.ip already
-// proves routing). Three ways to route your own traffic:
-//   (A) per-request / split tunnel — point a SOCKS agent at vpn.socksPort (shown below).
-//   (B) whole device — pass systemProxy: true to connect(); the SDK sets the OS proxy
-//       (Windows registry / macOS networksetup / Linux gsettings), restored on disconnect().
-//   (C) kernel full tunnel — use protocol: 'wireguard' for a transparent network-layer route.
+// v2ray (protocol: 'v2ray') runs a SOCKS5 proxy. Encrypt the whole device or chosen requests:
+//   Whole device   — pass systemProxy: true to connect(); the SDK sets the system proxy
+//                    (Windows registry / macOS networksetup / Linux gsettings), restored on disconnect().
+//   Per-request    — omit systemProxy and route chosen requests through vpn.socksPort (shown below).
+//   WireGuard      — use protocol: 'wireguard' for a kernel-level full tunnel.
 // socksPort is DYNAMIC — read it from the connect() result, never hardcode.
-// CRITICAL: Node's native fetch() IGNORES SOCKS5 agents and leaks the real IP — use axios.
+// vpn.ip is the exit IP, already verified through the tunnel by the SDK.
+// CRITICAL (per-request): Node's native fetch() ignores SOCKS5 agents and exits on the real IP — use axios.
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import axios from 'axios';
 const proxy = new SocksProxyAgent(`socks5h://127.0.0.1:${vpn.socksPort}`);
