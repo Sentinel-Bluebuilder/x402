@@ -260,7 +260,8 @@ nav .logo .brand-mark {
 
 nav .logo .brand-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
-nav .logo span { color: var(--accent); text-shadow: 0 0 12px rgba(0, 170, 255, 0.3); }
+nav .logo .wordmark { white-space: nowrap; }
+nav .logo .wm-accent { color: var(--accent); text-shadow: 0 0 12px rgba(0, 170, 255, 0.3); }
 
 /* ─── Logo / Brand-mark sizing ─── */
 .brand-mark-lg {
@@ -1606,7 +1607,7 @@ section h3 {
   <div class="inner">
     <div class="logo">
       <span class="brand-mark"><img src="assets/sentinel-shield.svg" alt="Sentinel"></span>
-      <span>x</span>402
+      <span class="wordmark"><span class="wm-accent">x</span>402</span>
     </div>
     <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="nav-links">
       <span class="nav-toggle-bar"></span>
@@ -1619,7 +1620,7 @@ section h3 {
       <a href="#code">Integration</a>
       <a href="#security">Security</a>
       <a href="https://autonomous.sentinel.co" target="_blank" rel="noopener">Autonomous &#8599;</a>
-      <a href="https://github.com/Sentinel-Autonomybuilder/x402" target="_blank">GitHub</a>
+      <a href="https://github.com/Sentinel-Bluebuilder/x402" target="_blank">GitHub</a>
     </div>
   </div>
 </nav>
@@ -1663,7 +1664,7 @@ section h3 {
         <div class="uc-head">
           <span class="uc-dot"></span>
           <span class="uc-overline">agent dVPN &mdash; use cases</span>
-          <span class="uc-count">05</span>
+          <span class="uc-count">5 uses</span>
         </div>
         <div class="uc-row">
           <span class="uc-icon" aria-hidden="true">
@@ -1681,7 +1682,7 @@ section h3 {
           </span>
           <span class="uc-text">
             <span class="uc-title">Geo-restricted exchanges</span>
-            <span class="uc-desc">Trade on Hyperliquid and region-locked venues from anywhere.</span>
+            <span class="uc-desc">Reach region-locked trading venues from anywhere.</span>
           </span>
           <span class="uc-num">02</span>
         </div>
@@ -1761,7 +1762,7 @@ section h3 {
 <section id="flow">
   <div class="container">
     <h2>One paid request, fully provisioned</h2>
-    <p class="desc">This site is the x402 <strong>managed</strong> path: the agent pays USDC over HTTP 402 and the operator provisions everything &mdash; subscription share and a Sentinel gas grant &mdash; so the agent connects with one command, holding zero P2P tokens and paying zero gas. Just an EVM key with USDC on Base.</p>
+    <p class="desc">This site is the x402 <strong>managed</strong> path: the agent pays USDC over HTTP 402 and the operator provisions everything (subscription share and a Sentinel gas grant) so the agent connects with one command, holding zero P2P tokens and paying zero gas. Just an EVM key with USDC on Base.</p>
 
     <div class="paths-grid">
       <div class="path-card active">
@@ -1836,7 +1837,7 @@ section h3 {
         <div class="step-num">3</div>
         <div class="step-content">
           <h4>Facilitator settles on-chain</h4>
-          <p>Our self-hosted facilitator verifies the EIP-3009 signature and settles the USDC transfer on Base. Fully decentralized &mdash; no Coinbase, no third party. Payment confirmed in ~2 seconds.</p>
+          <p>Our self-hosted facilitator verifies the EIP-3009 signature and settles the USDC transfer on Base. Fully decentralized: no Coinbase, no third party. Payment confirmed in ~2 seconds.</p>
           <span class="tag tag-backend">Automatic</span>
         </div>
       </div>
@@ -1859,11 +1860,11 @@ section h3 {
 <section id="autonomous">
   <div class="container">
     <h2>Prefer no operator at all?</h2>
-    <p class="desc">There's a second, fully self-funded way onto Sentinel &mdash; the <strong>autonomous</strong> flow. The agent holds its own P2P tokens, picks any node on the network, pays it directly, and manages its own gas: no operator, no fee-grant, no subscription. It has a different trust model, so it lives on its own site.</p>
+    <p class="desc">There's a second, fully self-funded way onto Sentinel: the <strong>autonomous</strong> flow. The agent holds its own P2P tokens, picks any node on the network, settles directly with that node, and manages its own gas. No operator sits in the middle at all. It has a different trust model, so it lives on its own site.</p>
 
     <div class="callout callout-ok" style="max-width: 760px; margin: 0 auto 28px;">
       <div class="callout-title">&#10003; Verified live on mainnet</div>
-      <p>A test agent ran the autonomous flow end-to-end with no operator in the loop: it picked a US node, opened on-chain session <code>45433200</code>, paid <strong>40.19&nbsp;P2P</strong> for a 1&nbsp;GB V2Ray session, and the SDK confirmed the exit IP <code>104.252.19.187</code> through the tunnel &mdash; ~67&nbsp;s start to finish. That 40&nbsp;P2P is the live network median; the cheapest nodes run ~2&nbsp;P2P/GB.</p>
+      <p>A representative run: a test agent ran the autonomous flow end-to-end with no operator in the loop. It picked a US node (Seattle), opened on-chain session <code>45943402</code>, paid <strong>40.19&nbsp;P2P</strong> for a 1&nbsp;GB V2Ray session, and the SDK confirmed the exit IP <code>192.3.53.166</code> through the tunnel in about 35&nbsp;s. Session ID, node, exit IP, and timing vary run to run; that 40&nbsp;P2P is right at the live network median, with the cheapest nodes around ~2&nbsp;P2P/GB.</p>
     </div>
 
     <div style="text-align: center; margin: 0 auto 8px; max-width: 760px;">
@@ -2123,7 +2124,7 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
     <div class="security-grid">
       <div class="security-item">
         <h4>Agent keys never leave the agent</h4>
-        <p>The EIP-3009 authorization is signed locally on the agent &mdash; the facilitator only ever receives the signature, never the EVM private key. The agent's Sentinel key stays local too. No private key ever reaches the operator.</p>
+        <p>The EIP-3009 authorization is signed locally on the agent. The facilitator only ever receives the signature, never the EVM private key. The agent's Sentinel key stays local too. No private key ever reaches the operator.</p>
       </div>
       <div class="security-item">
         <h4>Tunnel is always agent-to-node</h4>
@@ -2131,7 +2132,7 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
       </div>
       <div class="security-item">
         <h4>Self-hosted facilitator</h4>
-        <p>The Managed Plan uses our own facilitator &mdash; no Coinbase, no third party. It verifies EIP-3009 signatures and settles USDC on Base. Fully auditable on-chain. Open source.</p>
+        <p>The Managed Plan uses our own facilitator: no Coinbase, no third party. It verifies EIP-3009 signatures and settles USDC on Base. Fully auditable on-chain. Open source.</p>
       </div>
       <div class="security-item">
         <h4>Minimal trust, by design</h4>
@@ -2147,7 +2148,7 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
 <section id="chains">
   <div class="container">
     <h2>Live on Base mainnet</h2>
-    <p class="desc">USDC payments settled via EIP-3009 <code>transferWithAuthorization</code> &mdash; no custom contract, no approve step. Native USDC on Base.</p>
+    <p class="desc">USDC payments settled via EIP-3009 <code>transferWithAuthorization</code>: no custom contract, no approve step. Native USDC on Base.</p>
 
     <div class="contract-box">
       <div>
@@ -2364,7 +2365,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
       </div>
       <div class="security-item">
         <h4>Spend limit</h4>
-        <p>5 P2P (5,000,000 udvpn) per agent &mdash; enough for ~25 session operations. If exhausted, the SDK throws <code>FEE_GRANT_EXHAUSTED</code> with <code>nextAction: 'request_fee_grant_renewal'</code>.</p>
+        <p>5 P2P (5,000,000 udvpn) per agent, enough for ~25 session operations. If exhausted, the SDK throws <code>FEE_GRANT_EXHAUSTED</code> with <code>nextAction: 'request_fee_grant_renewal'</code>.</p>
       </div>
       <div class="security-item">
         <h4>Expiration</h4>
@@ -2500,7 +2501,7 @@ console<span class="op">.</span><span class="fn">log</span>(<span class="str">`V
 <!-- ─── Footer ─── -->
 <footer>
   <div class="footer-links">
-    <a href="https://github.com/Sentinel-Autonomybuilder/x402" target="_blank">GitHub</a>
+    <a href="https://github.com/Sentinel-Bluebuilder/x402" target="_blank">GitHub</a>
     <a href="https://www.npmjs.com/package/@x402/fetch" target="_blank">@x402/fetch</a>
     <a href="https://www.npmjs.com/package/blue-js-sdk" target="_blank">blue-js-sdk</a>
     <a href="https://sentinel.co" target="_blank">Sentinel Network</a>
