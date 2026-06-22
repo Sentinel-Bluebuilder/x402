@@ -37,7 +37,7 @@ Paid (HTTP 402, body `{ "sentinelAddr": "sent1...", "country": "DE" }` — `coun
 Free:
 - GET `/manifest` — full machine-readable protocol spec (use this first, ~300 tokens)
 - GET `/pricing` — human pricing table
-- GET `/nodes` — VPN nodes in operator plan with live geo data (country, city, protocol, online) and a `byCountry` summary
+- GET `/nodes` — VPN nodes in operator plan with live per-node metadata (address, online, protocol, country, city, moniker, peers, maxPeers, version, lastSeen) plus `byCountry` and `byProtocol` summaries. Filter with `?protocol=v2ray|wireguard` and/or `?country=DE`.
 - GET `/health` — uptime
 - GET `/agent/:sentinelAddr` — subscription + fee-grant status
 
@@ -51,13 +51,13 @@ Free:
 
 ## Agent flow
 
-1. POST to a paid endpoint with `{ sentinelAddr }` (add `country` to request a node location — validated before payment).
+1. POST to a paid endpoint with `{ sentinelAddr }` (add `country` to request a node location, and/or `protocol: "v2ray" | "wireguard"` to pin the tunnel type — both validated before payment, so an unavailable filter returns 400 without spending USDC).
 2. Server returns 402 with `PAYMENT-REQUIRED` header (amount, asset, payTo, network).
 3. Agent signs EIP-3009 locally (EIP-712).
 4. Agent resends with `PAYMENT-SIGNATURE` header — `@x402/fetch` does this automatically.
 5. Facilitator settles USDC on Base.
 6. Server submits atomic `MsgShareSubscription` + `MsgGrantAllowance` on Sentinel.
-7. Server returns 200 `{ provisioned, subscriptionId, planId, feeGranter, nodeAddress, nodeCountry, nodes[], sentinelTxHash, expiresAt }`.
+7. Server returns 200 `{ provisioned, subscriptionId, planId, feeGranter, nodeAddress, nodeCountry, nodeProtocol, node, nodes[], sentinelTxHash, expiresAt, expiresAtPaid }`. `nodeProtocol` + `node` describe the actually-selected node (full metadata); `expiresAtPaid` is the paid window, while `expiresAt` includes a deliberate +1-day fee-grant grace buffer (the grant outlives the paid time so a session started at the very end can still pay gas).
 8. Agent connects (all consume the same 200 fields):
    - **All platforms (recommended):** `connect({ mnemonic, subscriptionId, feeGranter, nodeAddress, protocol: 'v2ray' })` — zero admin, zero manual install (the v2ray binary auto-downloads on Windows, macOS and Linux alike). Add `systemProxy: true` for whole-device routing. Omit `protocol` only if you have admin and want WireGuard nodes too. (See "JS-SDK connect".)
    - **macOS/Linux native CLI (alternative — mainly for WireGuard or Node-less):** import the key (`printf '%s\n\n' "$MNEMONIC" | sentinel-dvpncli keys add agent --keyring.backend test`), `sentinel-dvpncli tx session-start <nodeAddress> --subscription-id <subscriptionId> --tx.fee-granter-addr <feeGranter> --tx.from-name agent --keyring.backend test`, resolve the new id with `sentinel-dvpncli query sessions --account-addr <sent1...> --subscription-id <subscriptionId> --output-format json` (newest entry), then `sentinel-dvpncli connect <sessionId>`. (See "macOS & Linux — native CLI connect".)
@@ -131,6 +131,74 @@ const proxy = new SocksProxyAgent(`socks5h://127.0.0.1:${vpn.socksPort}`);
 const { data } = await axios.get('https://api.example.com/sensitive', {
   httpAgent: proxy, httpsAgent: proxy, adapter: 'http',
 }); // exits on vpn.ip
+```
+
+## Two worked connect examples — no-root V2Ray, and Linux WireGuard full-tunnel
+
+These are the two paths agents actually hit. Both reuse the exact `provision` object from the
+payment block above (`{ subscriptionId, planId, feeGranter, nodeAddress, nodeProtocol, node }`).
+
+**Pin the protocol at provision time.** Pass `protocol` in the request body so x402 selects a node
+that actually speaks it and returns that node's real protocol — never a WireGuard node when you
+asked for userspace V2Ray. The 200 response echoes `nodeProtocol` (the selected node's true
+protocol) and a full `node` object (`address, online, protocol, country, city, moniker, peers,
+maxPeers, version, lastSeen`). You can also pre-shop with `GET /nodes?protocol=v2ray&country=DE`.
+
+### A. No-root V2Ray (Windows, macOS, Linux — zero admin)
+
+```typescript
+// Ask x402 for a V2Ray node up front. With protocol set, the server pre-validates availability
+// BEFORE you pay (400 PROTOCOL_UNAVAILABLE if none) — no USDC is spent on a guaranteed-fail request.
+const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ sentinelAddr: wallet.address, protocol: 'v2ray' }), // country optional
+});
+const provision = await res.json();
+// provision.nodeProtocol === 'v2ray', provision.node === the selected V2Ray node (full metadata).
+
+const vpn = await connect({
+  mnemonic: wallet.mnemonic,
+  subscriptionId: String(provision.subscriptionId),
+  feeGranter: provision.feeGranter,
+  nodeAddress: provision.nodeAddress, // the V2Ray node x402 already picked for you
+  protocol: 'v2ray',                  // userspace SOCKS5 — NO admin, NO manual install, any OS
+});
+// vpn => { connected, ip, protocol: 'v2ray', sessionId, nodeAddress, socksPort }
+// Route per-request through vpn.socksPort with socks5h:// (DNS at the exit) — see the axios snippet above.
+```
+
+### B. Linux WireGuard full-tunnel (root) — pass splitIPs to route ALL traffic
+
+```typescript
+// WireGuard is kernel-level and needs root on Linux/macOS (sudo) / Administrator on Windows.
+// Ask for a wireguard node so the server picks one and returns protocol-correct instructions.
+const res = await paidFetch('https://x402.sentinel.co/vpn/connect/30days', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ sentinelAddr: wallet.address, protocol: 'wireguard' }),
+});
+const provision = await res.json();
+// provision.nodeProtocol === 'wireguard'. provision.instructions spells out the splitIPs requirement.
+
+const vpn = await connect({
+  mnemonic: wallet.mnemonic,
+  subscriptionId: String(provision.subscriptionId),
+  feeGranter: provision.feeGranter,
+  nodeAddress: provision.nodeAddress,
+  protocol: 'wireguard',
+  // REQUIRED on Linux for a real FULL tunnel. Without an explicit AllowedIPs, the Linux
+  // wg-quick path can fail to install a default route (and a stale 'wgsent0' from a crashed
+  // run blocks re-creation). Passing the catch-all routes forces all IPv4+IPv6 through the node:
+  splitIPs: ['0.0.0.0/0', '::/0'],
+});
+// vpn => { connected, ip, protocol: 'wireguard', sessionId, nodeAddress }
+// vpn.ip is the node exit IP — every connection on the box now egresses through it (full tunnel).
+//
+// Run this with sudo (it creates the wgsent0 interface). If a prior run crashed and left the
+// interface behind, tear it down first:  sudo wg-quick down wgsent0  (ignore "does not exist").
+// SDK note: the duplicate-interface / cleanup edge on Linux full-tunnel is tracked in blue-js-sdk;
+// the splitIPs workaround above is the supported path until that fix ships.
 ```
 
 ## Native CLI connect — the WireGuard / Node-less alternative (macOS, Linux, Windows)

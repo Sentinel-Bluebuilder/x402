@@ -433,46 +433,87 @@ export interface ProvisionResult {
   feeGranter: string;
   nodeAddress: string;
   nodeCountry: string | null;
+  // The ACTUAL protocol of the selected node, verified from its live status —
+  // so the agent never gets a v2ray connect snippet for a wireguard node.
+  // null when the node could not be reached for verification.
+  nodeProtocol: 'wireguard' | 'v2ray' | null;
+  // Full metadata for the recommended node (moniker/city/peers/version/...),
+  // so the agent can confirm what it's connecting to without a second round-trip.
+  node: EnrichedNode | null;
   nodes: string[];
   sentinelTxHash: string;
   expiresAt: string;
+  // Whole-day window the agent paid for (1/7/30).
+  expiresAtPaid: string;
   operatorAddress: string;
   instructions: string;
 }
 
-// Builds the provision response. When the agent requested a country, pick a
-// node verified (via its /status endpoint) to be in that country; otherwise —
-// or if no match is online — fall back to a random plan node. The recommended
-// node MUST come from the plan: the shared subscription only works with plan
-// nodes, so global SDK country discovery would hand the agent a dead session.
+// Connect snippet tailored to the SELECTED node's real protocol. V2Ray is a
+// userspace SOCKS5 tunnel (no admin); WireGuard needs an OS network interface
+// (root on Linux/macOS, Administrator on Windows). Emitting the wrong one was
+// the live failure: a v2ray snippet handed to an agent that got a wireguard node.
+function buildInstructions(protocol: 'wireguard' | 'v2ray' | null, opts: {
+  nodeAddress: string; subscriptionId: number; feeGranter: string;
+}): string {
+  const base = `import { connect } from 'blue-js-sdk/ai-path'; await connect({ mnemonic, protocol: '${protocol || 'v2ray'}', nodeAddress: '${opts.nodeAddress}', subscriptionId: '${opts.subscriptionId}', feeGranter: '${opts.feeGranter}' });`;
+  if (protocol === 'wireguard') {
+    return `${base} // WireGuard node: needs root (Linux/macOS: sudo) or Administrator (Windows). Linux full-tunnel: pass splitIPs: ['0.0.0.0/0','::/0']. gas paid by feeGranter.`;
+  }
+  // v2ray (or unknown — v2ray is the safe no-admin default)
+  return `${base} // protocol:'v2ray' = userspace SOCKS5, NO admin needed; binary auto-installs. gas paid by feeGranter.`;
+}
+
+// Builds the provision response. The recommended node MUST come from the plan:
+// the shared subscription only works with plan nodes, so global SDK discovery
+// would hand the agent a dead session. We pick the best ONLINE plan node that
+// satisfies the agent's preferences — protocol first (a wrong protocol breaks
+// the connect outright), then country — and return that node's VERIFIED protocol
+// plus its full metadata so the connect instructions always match reality.
 async function buildProvisionResult(opts: {
   sentinelAddr: string;
   days: number;
   subscriptionId: number;
   txHash: string;
   expiresAt: string;
+  expiresAtPaid: string;
   country?: string;
+  protocol?: 'wireguard' | 'v2ray';
 }): Promise<ProvisionResult> {
   const planNodes = await getPlanNodes();
-  let recommended = '';
-  let nodeCountry: string | null = null;
+  let pick: EnrichedNode | null = null;
 
-  if (opts.country) {
-    try {
-      const matches = matchNodesByCountry(await getEnrichedPlanNodes(), opts.country);
-      if (matches.length > 0) {
-        const pick = matches[Math.floor(Math.random() * matches.length)];
-        recommended = pick.address;
-        nodeCountry = pick.country;
-      } else {
-        console.warn(`[sentinel] No online plan node matches country "${opts.country}" — falling back to random node`);
-      }
-    } catch (err) {
-      console.warn('[sentinel] Country-aware node pick failed, falling back to random:', (err as Error).message);
+  try {
+    const enriched = await getEnrichedPlanNodes();
+    // Start from online nodes, then narrow by the requested protocol and country.
+    // Each filter is only applied if it leaves at least one candidate, so a
+    // preference never produces an empty pick when a looser match exists.
+    let candidates = enriched.filter(n => n.online);
+
+    if (opts.protocol) {
+      const byProtocol = candidates.filter(n => n.protocol === opts.protocol);
+      if (byProtocol.length > 0) candidates = byProtocol;
+      else console.warn(`[sentinel] No online plan node speaks "${opts.protocol}" — ignoring protocol preference`);
     }
+
+    if (opts.country) {
+      const byCountry = matchNodesByCountry(candidates, opts.country);
+      if (byCountry.length > 0) candidates = byCountry;
+      else console.warn(`[sentinel] No online plan node matches country "${opts.country}" — ignoring country preference`);
+    }
+
+    if (candidates.length > 0) {
+      pick = candidates[Math.floor(Math.random() * candidates.length)];
+    } else {
+      console.warn('[sentinel] No online plan nodes available to recommend — falling back to a raw plan node');
+    }
+  } catch (err) {
+    console.warn('[sentinel] Enriched node pick failed, falling back to random:', (err as Error).message);
   }
 
-  if (!recommended) recommended = pickRandomNode(planNodes) || '';
+  // Fall back to a raw (unverified) plan node only if enrichment found nothing.
+  const recommended = pick?.address || pickRandomNode(planNodes) || '';
+  const nodeProtocol = pick?.protocol ?? null;
 
   return {
     provisioned: true,
@@ -482,13 +523,27 @@ async function buildProvisionResult(opts: {
     planId: PLAN_ID,
     feeGranter: operatorAddress,
     nodeAddress: recommended,
-    nodeCountry,
+    nodeCountry: pick?.country ?? null,
+    nodeProtocol,
+    node: pick,
     nodes: planNodes.map(n => n.address),
     sentinelTxHash: opts.txHash,
     expiresAt: opts.expiresAt,
+    expiresAtPaid: opts.expiresAtPaid,
     operatorAddress,
-    instructions: `import { connect } from 'blue-js-sdk/ai-path'; await connect({ mnemonic, protocol: 'v2ray', nodeAddress: '${recommended}', subscriptionId: '${opts.subscriptionId}', feeGranter: '${operatorAddress}' }); // protocol:'v2ray' = no admin; binary auto-installs. gas paid by feeGranter.`,
+    instructions: buildInstructions(nodeProtocol, {
+      nodeAddress: recommended,
+      subscriptionId: opts.subscriptionId,
+      feeGranter: operatorAddress,
+    }),
   };
+}
+
+// Accepts a node-list and a protocol; returns only online nodes speaking it.
+export function matchNodesByProtocol(
+  nodes: EnrichedNode[], protocol: 'wireguard' | 'v2ray',
+): EnrichedNode[] {
+  return nodes.filter(n => n.online && n.protocol === protocol);
 }
 
 // MsgGrantAllowance hard-fails when the grantee already holds a fee grant
@@ -537,6 +592,7 @@ export async function provisionAgent(
   sentinelAddr: string,
   days: number,
   country?: string,
+  protocol?: 'wireguard' | 'v2ray',
 ): Promise<ProvisionResult> {
   if (!safeBroadcast) {
     throw new Error('Sentinel not initialized — call initSentinel() first');
@@ -546,7 +602,14 @@ export async function provisionAgent(
     throw new Error('Invalid Sentinel address — must start with sent1');
   }
 
-  const expirationDate = new Date(Date.now() + days * 86_400_000 + 86_400_000);
+  // The fee grant gets a deliberate +1 day grace buffer beyond the paid window,
+  // so a session started near the end of the paid period still has gas to start
+  // and cleanly cancel. `expiresAtPaid` is the whole-day window the agent paid
+  // for; `expiresAt` is the (longer) fee-grant expiry. Both are returned so the
+  // agent sees the real numbers and the ~Nd+1 grant is not mistaken for a bug.
+  const now = Date.now();
+  const paidExpirationDate = new Date(now + days * 86_400_000);
+  const expirationDate = new Date(now + days * 86_400_000 + 86_400_000);
   const feeGrantMsg = buildFeeGrantMsg(operatorAddress, sentinelAddr, {
     spendLimit: FEE_GRANT_SPEND_LIMIT,
     expiration: expirationDate,
@@ -580,7 +643,9 @@ export async function provisionAgent(
           subscriptionId: slot.id,
           txHash: result.transactionHash,
           expiresAt: expirationDate.toISOString(),
+          expiresAtPaid: paidExpirationDate.toISOString(),
           country,
+          protocol,
         });
       }
 
@@ -631,7 +696,9 @@ export async function provisionAgent(
     subscriptionId,
     txHash: result.transactionHash,
     expiresAt: expirationDate.toISOString(),
+    expiresAtPaid: paidExpirationDate.toISOString(),
     country,
+    protocol,
   });
 }
 
@@ -694,22 +761,40 @@ export interface EnrichedNode {
   remote_addrs: string[];
   online: boolean;
   country: string | null;
+  countryCode: string | null;
   city: string | null;
   protocol: 'wireguard' | 'v2ray' | null;
   moniker: string | null;
   peers: number | null;
   maxPeers: number | null;
+  version: string | null;
+  // ISO timestamp of the last successful status probe (null if never reached).
+  lastSeen: string | null;
 }
 
 const STATUS_PROBE_TIMEOUT = 7_000;
 
+// LCD/RPC v3 returns remote_addrs as bare "IP:PORT" or "host:PORT" strings with
+// NO scheme. `new URL("1.2.3.4:8585")` throws (treated as scheme) and
+// `new URL("host:8585")` misparses "host:" as the scheme with an empty hostname —
+// which is exactly why every probe used to return null and /nodes reported 0
+// online across the whole plan. Prefix https:// when there's no scheme, matching
+// blue-js-sdk's resolveNodeUrl(). IPv6 forms already arrive bracketed
+// ("[::1]:8585") so URL parses them once a scheme is present.
+function normalizeRemoteAddrToUrl(remoteAddr: string): URL | null {
+  const withScheme = /^https?:\/\//i.test(remoteAddr) ? remoteAddr : `https://${remoteAddr}`;
+  try {
+    return new URL(withScheme);
+  } catch (err) {
+    console.warn(`[sentinel] Unparseable remote_addr "${remoteAddr}":`, (err as Error).message);
+    return null;
+  }
+}
+
 function probeNodeStatus(remoteAddr: string): Promise<Record<string, any> | null> {
   return new Promise((resolve) => {
-    let url: URL;
-    try {
-      url = new URL(remoteAddr);
-    } catch (err) {
-      console.warn(`[sentinel] Unparseable remote_addr "${remoteAddr}":`, (err as Error).message);
+    const url = normalizeRemoteAddrToUrl(remoteAddr);
+    if (!url) {
       resolve(null);
       return;
     }
@@ -718,7 +803,9 @@ function probeNodeStatus(remoteAddr: string): Promise<Record<string, any> | null
       {
         hostname: url.hostname,
         port: url.port || 443,
-        path: '/status',
+        // v3 dVPN nodes serve their status JSON at the ROOT path ("/"), not
+        // "/status" — the old "/status" probe 404'd on every node.
+        path: '/',
         method: 'GET',
         rejectUnauthorized: false, // dVPN nodes use self-signed certs by design
         timeout: STATUS_PROBE_TIMEOUT,
@@ -731,7 +818,7 @@ function probeNodeStatus(remoteAddr: string): Promise<Record<string, any> | null
             const json = JSON.parse(body);
             resolve(json.result || json);
           } catch (err) {
-            console.warn(`[sentinel] Node ${url.hostname} returned non-JSON /status:`, (err as Error).message);
+            console.warn(`[sentinel] Node ${url.hostname} returned non-JSON status:`, (err as Error).message);
             resolve(null);
           }
         });
@@ -755,19 +842,37 @@ export async function getEnrichedPlanNodes(): Promise<EnrichedNode[]> {
     return enrichedCache;
   }
 
+  const probedAt = new Date().toISOString();
   const nodes = await getPlanNodes();
   const enriched = await Promise.all(nodes.map(async (n): Promise<EnrichedNode> => {
-    const status = n.remote_addrs[0] ? await probeNodeStatus(n.remote_addrs[0]) : null;
+    // Probe every advertised address, not just the first — a node may publish a
+    // dead IPv6 ahead of a live IPv4 (or vice versa); the first reachable one wins.
+    let status: Record<string, any> | null = null;
+    for (const addr of n.remote_addrs) {
+      status = await probeNodeStatus(addr);
+      if (status) break;
+    }
+    // v3 /status reports protocol as the string `service_type`
+    // ("wireguard" | "v2ray"), NOT the numeric `type` the old code checked —
+    // which is why protocol was null for every node even when reachable.
+    const serviceType = status?.service_type;
+    const protocol: 'wireguard' | 'v2ray' | null =
+      serviceType === 'wireguard' ? 'wireguard' : serviceType === 'v2ray' ? 'v2ray' : null;
     return {
       address: n.address,
       remote_addrs: n.remote_addrs,
       online: status !== null,
       country: status?.location?.country ?? null,
+      countryCode: status?.location?.country_code ?? null,
       city: status?.location?.city ?? null,
-      protocol: status?.type === 1 ? 'wireguard' : status?.type === 2 ? 'v2ray' : null,
+      protocol,
       moniker: status?.moniker ?? null,
       peers: typeof status?.peers === 'number' ? status.peers : null,
-      maxPeers: typeof status?.max_peers === 'number' ? status.max_peers : null,
+      // v3 status does not currently expose a peer cap; surface qos.max_peers
+      // if a node ever reports it, else null.
+      maxPeers: typeof status?.qos?.max_peers === 'number' ? status.qos.max_peers : null,
+      version: status?.version?.tag ?? null,
+      lastSeen: status !== null ? probedAt : null,
     };
   }));
 

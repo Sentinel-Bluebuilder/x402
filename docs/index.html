@@ -38,9 +38,9 @@
       "gasless": true,
       "approveRequired": false
     },
-    "request": { "contentType": "application/json", "body": { "sentinelAddr": "^sent1[0-9a-z]{38}$", "country": "optional — ISO code or name, e.g. DE; validated before payment (COUNTRY_UNAVAILABLE if unmatched)" } },
+    "request": { "contentType": "application/json", "body": { "sentinelAddr": "^sent1[0-9a-z]{38}$", "country": "optional — ISO code or name, e.g. DE; validated before payment (COUNTRY_UNAVAILABLE if unmatched)", "protocol": "optional — 'v2ray' | 'wireguard'; pins the tunnel type so the selected node speaks it; validated before payment (INVALID_PROTOCOL / PROTOCOL_UNAVAILABLE if unmatched)" } },
     "response": {
-      "200": { "subscriptionId": "number", "planId": "number", "feeGranter": "sent1...", "nodeAddress": "sentnode1...", "nodeCountry": "string|null", "nodes": "string[]", "expiresAt": "ISO8601" },
+      "200": { "subscriptionId": "number", "planId": "number", "feeGranter": "sent1...", "nodeAddress": "sentnode1...", "nodeCountry": "string|null", "nodeProtocol": "'wireguard' | 'v2ray' | null — the selected node's actual protocol", "node": "{ address, online, protocol, country, city, moniker, peers, maxPeers, version, lastSeen } — selected node metadata", "nodes": "string[]", "expiresAt": "ISO8601 — paid window + 1-day fee-grant grace buffer", "expiresAtPaid": "ISO8601 — the paid window end" },
       "402": "Sign EIP-3009 transferWithAuthorization, resend with PAYMENT-SIGNATURE header"
     },
     "packages": { "payment": "@x402/fetch", "scheme": "@x402/evm", "sentinel": "blue-js-sdk/ai-path" },
@@ -66,7 +66,7 @@
       "/manifest": "Full JSON spec",
       "/llms.txt": "Human + AI markdown summary",
       "/pricing": "Human pricing table",
-      "/nodes": "VPN nodes in operator plan with live geo data (country, city, protocol, online) + byCountry summary",
+      "/nodes": "VPN nodes in operator plan with live per-node metadata (address, online, protocol, country, city, moniker, peers, maxPeers, version, lastSeen) + byCountry & byProtocol summaries; filter with ?protocol=v2ray|wireguard and/or ?country=DE",
       "/health": "Uptime",
       "/agent/:sentinelAddr": "Subscription + fee-grant status"
     }
@@ -2242,7 +2242,7 @@ sentinel-dvpncli connect <span class="str">"$SESSION_ID"</span>
         <div class="label">Free endpoints (no payment)</div>
       </div>
       <pre><code><span class="fn">GET</span> /pricing              <span class="cm">Tiers, network, asset info</span>
-<span class="fn">GET</span> /nodes                <span class="cm">Plan nodes + live geo (country, city, protocol, byCountry)</span>
+<span class="fn">GET</span> /nodes                <span class="cm">Plan nodes + live metadata (?protocol= ?country=, byCountry, byProtocol)</span>
 <span class="fn">GET</span> /health               <span class="cm">Server status + uptime</span>
 <span class="fn">GET</span> /agent/:sentinelAddr  <span class="cm">Check subscription status</span></code></pre>
     </div>
