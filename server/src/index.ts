@@ -4,7 +4,7 @@ import { paymentMiddleware, x402ResourceServer } from '@x402/express';
 import { ExactEvmScheme } from '@x402/evm/exact/server';
 import { createFacilitatorConfig } from '@coinbase/x402';
 import { HTTPFacilitatorClient, type FacilitatorConfig } from '@x402/core/server';
-import { initSentinel, provisionAgent, checkAgentStatus, checkProvisioningCapacity, getEnrichedPlanNodes, matchNodesByCountry } from './sentinel.js';
+import { initSentinel, provisionAgent, checkAgentStatus, checkProvisioningCapacity, getEnrichedPlanNodes, matchNodesByCountry, matchNodesByProtocol } from './sentinel.js';
 import { createSelfHostedFacilitator, startFacilitatorServer } from './facilitator.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -149,6 +149,44 @@ app.use(async (req, res, next) => {
       }
     } catch (err) {
       console.warn('[x402] Country pre-check errored (continuing):', (err as Error).message);
+    }
+  }
+
+  // Protocol preference — WireGuard needs root/Administrator; V2Ray is userspace
+  // (no admin). An agent that can't elevate privileges MUST be able to force a
+  // V2Ray node. Validate the value and, if a protocol is requested that no
+  // online plan node currently speaks, reject BEFORE payment. Fails open if node
+  // enrichment errors (provisioning then picks the best available node and the
+  // response carries the node's real protocol so the agent can still branch).
+  const protocol = body.protocol;
+  if (protocol !== undefined) {
+    if (protocol !== 'wireguard' && protocol !== 'v2ray') {
+      return res.status(400).json({
+        code: 'INVALID_PROTOCOL',
+        message: "`protocol` must be 'v2ray' (userspace SOCKS5, no admin) or 'wireguard' (needs root/Administrator).",
+        nextAction: "Resend with protocol: 'v2ray' for no-admin connect, 'wireguard' for a full OS tunnel, or omit it to let the server pick. GET /nodes?protocol=v2ray lists no-admin nodes.",
+        docs: '/nodes',
+      });
+    }
+    try {
+      const enriched = await getEnrichedPlanNodes();
+      // Honour a co-requested country: only count nodes that satisfy BOTH.
+      const base = typeof country === 'string' && country.trim().length > 0
+        ? matchNodesByCountry(enriched, country)
+        : enriched;
+      const matches = matchNodesByProtocol(base, protocol);
+      if (matches.length === 0) {
+        const availableProtocols = [...new Set(enriched.filter(n => n.online && n.protocol).map(n => n.protocol))];
+        return res.status(400).json({
+          code: 'PROTOCOL_UNAVAILABLE',
+          message: `No online node in this plan currently speaks "${protocol}"${typeof country === 'string' ? ` in "${country}"` : ''}. You have NOT been charged — this check runs before payment.`,
+          availableProtocols,
+          nextAction: 'Resend with one of availableProtocols, drop the country constraint, or omit `protocol`. GET /nodes shows each node\'s live protocol.',
+          docs: '/nodes',
+        });
+      }
+    } catch (err) {
+      console.warn('[x402] Protocol pre-check errored (continuing):', (err as Error).message);
     }
   }
 
@@ -401,6 +439,12 @@ app.get('/manifest', (_req, res) => {
           description: 'Preferred node country — ISO 3166-1 alpha-2 code ("DE") or name ("Germany"). Validated BEFORE payment: if no online plan node matches, you get COUNTRY_UNAVAILABLE with availableCountries and are not charged. Omit to let the server pick.',
           example: 'DE',
         },
+        protocol: {
+          type: "string ('v2ray' | 'wireguard')",
+          required: false,
+          description: "Force the tunnel protocol of the selected node. 'v2ray' = userspace SOCKS5, NO admin/root needed (use this if you cannot elevate privileges). 'wireguard' = full OS network interface, needs root (Linux/macOS) or Administrator (Windows). Validated BEFORE payment: if no online plan node speaks it (optionally within the requested country), you get PROTOCOL_UNAVAILABLE with availableProtocols and are not charged. Omit to let the server pick; the response's nodeProtocol always tells you what you actually got.",
+          example: 'v2ray',
+        },
       },
     },
     response: {
@@ -412,10 +456,13 @@ app.get('/manifest', (_req, res) => {
           planId: 'number',
           feeGranter: 'string (sent1...)',
           nodeAddress: 'string (sentnode1...)',
-          nodeCountry: 'string | null — country of nodeAddress when a country was requested and matched',
-          nodes: 'string[]',
+          nodeCountry: 'string | null — country of the selected node (verified from its live status)',
+          nodeProtocol: "'wireguard' | 'v2ray' | null — the ACTUAL protocol of nodeAddress. Use this to decide whether you need root/Administrator (wireguard) or not (v2ray). null only if the node could not be reached to verify.",
+          node: 'object | null — full metadata for nodeAddress: { address, online, country, countryCode, city, protocol, moniker, peers, maxPeers, version, lastSeen }. null if no online node could be verified.',
+          nodes: 'string[] — all plan node addresses (fallback pool)',
           sentinelTxHash: 'string',
-          expiresAt: 'string (ISO 8601)',
+          expiresAt: 'string (ISO 8601) — fee-grant expiry; this is days + 1 day grace buffer so a session started near the end still has gas to start and cancel cleanly',
+          expiresAtPaid: 'string (ISO 8601) — end of the whole-day window you paid for (1/7/30 days). expiresAt is intentionally ~1 day later (grace buffer), not a bug.',
         },
       },
       paymentRequired: {
@@ -430,6 +477,8 @@ app.get('/manifest', (_req, res) => {
           INVALID_SENTINEL_ADDR: { status: 400, meaning: "sentinelAddr is not a valid sent1-bech32 address — use createWallet() from 'blue-js-sdk/ai-path'." },
           UNKNOWN_TIER: { status: 404, meaning: 'Path tier is not one of 1day | 7days | 30days.' },
           COUNTRY_UNAVAILABLE: { status: 400, meaning: 'Requested country has no online plan node. Returned BEFORE payment — no USDC charged. Response includes availableCountries; resend with one of those or omit country.' },
+          INVALID_PROTOCOL: { status: 400, meaning: "`protocol` body field must be 'v2ray' or 'wireguard'. Returned BEFORE payment — no USDC charged." },
+          PROTOCOL_UNAVAILABLE: { status: 400, meaning: 'Requested protocol (optionally + country) has no online plan node. Returned BEFORE payment — no USDC charged. Response includes availableProtocols; resend with one of those or omit protocol.' },
           PAYMENT_REQUIRED: { status: 402, meaning: 'Sign EIP-3009 transferWithAuthorization and resend with PAYMENT-SIGNATURE header. @x402/fetch handles this automatically.' },
           CAPACITY_EXHAUSTED: { status: 503, meaning: 'Operator cannot provision right now (subscription pool full and operator balance below new-subscription cost). Returned BEFORE payment — no USDC charged. Retry later; re-checked every 60s.' },
           PROVISIONING_FAILED: { status: 500, meaning: 'Sentinel TX failed after payment verification. USDC was NOT charged — settlement only happens after a successful 2xx response. Safe to retry.' },
@@ -610,23 +659,52 @@ app.get('/llms.txt', (_req, res) => {
   res.type('text/plain').send(llmsTxtCache);
 });
 
-// Node list — free, enriched with live geo data from each node's /status
-// endpoint so agents can see WHERE each node is and choose (or request a
-// country in the POST body and let the server pick a matching node).
-app.get('/nodes', async (_req, res) => {
+// Node list — free, enriched with live status from each node's root endpoint so
+// agents can see WHERE each node is and WHICH protocol it speaks. Optional query
+// filters: ?protocol=v2ray|wireguard and ?country=DE (ISO code or name). Both
+// the POST connect body and these filters share the same matching logic.
+app.get('/nodes', async (req, res) => {
   try {
-    const nodes = await getEnrichedPlanNodes();
+    let nodes = await getEnrichedPlanNodes();
+    const total = nodes.length;
+
+    const protocolQuery = typeof req.query.protocol === 'string' ? req.query.protocol : undefined;
+    if (protocolQuery !== undefined) {
+      if (protocolQuery !== 'wireguard' && protocolQuery !== 'v2ray') {
+        return res.status(400).json({
+          code: 'INVALID_PROTOCOL',
+          message: "Query `protocol` must be 'v2ray' or 'wireguard'.",
+          docs: '/nodes',
+        });
+      }
+      nodes = matchNodesByProtocol(nodes, protocolQuery);
+    }
+
+    const countryQuery = typeof req.query.country === 'string' && req.query.country.trim().length > 0
+      ? req.query.country.trim()
+      : undefined;
+    if (countryQuery !== undefined) {
+      nodes = matchNodesByCountry(nodes, countryQuery);
+    }
+
     const byCountry: Record<string, number> = {};
+    const byProtocol: Record<string, number> = {};
     for (const n of nodes) {
       if (n.online && n.country) byCountry[n.country] = (byCountry[n.country] || 0) + 1;
+      if (n.online && n.protocol) byProtocol[n.protocol] = (byProtocol[n.protocol] || 0) + 1;
     }
+
     res.json({
       planId: parseInt(process.env.SENTINEL_PLAN_ID || '42', 10),
+      // count reflects the (optionally filtered) result; total is the plan size.
       count: nodes.length,
+      total,
       online: nodes.filter(n => n.online).length,
+      filters: { protocol: protocolQuery ?? null, country: countryQuery ?? null },
       byCountry,
+      byProtocol,
       nodes,
-      note: 'Pass { country: "DE" } (ISO code or name) in the POST body to get a node in that country, or pass a specific nodeAddress from this list to connect(). Omit both and the server picks a random node.',
+      note: "Filter live: GET /nodes?protocol=v2ray (no-admin nodes) or ?country=DE. To connect, POST { sentinelAddr, protocol?, country? } and the server picks a matching node, or pass a specific nodeAddress from this list to connect(). protocol:'v2ray' needs no admin; 'wireguard' needs root/Administrator.",
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
@@ -683,8 +761,13 @@ async function provisionVpn(days: number, body: Record<string, unknown>) {
     ? body.country.trim()
     : undefined;
 
-  console.log(`[x402] Payment verified. Provisioning ${days} days for ${sentinelAddr}${country ? ` (country: ${country})` : ''}... (USDC settles only after a 2xx response)`);
-  const result = await provisionAgent(sentinelAddr, days, country);
+  // Pre-payment middleware already validated this is 'v2ray' | 'wireguard' | absent.
+  const protocol = body.protocol === 'wireguard' || body.protocol === 'v2ray'
+    ? body.protocol
+    : undefined;
+
+  console.log(`[x402] Payment verified. Provisioning ${days} days for ${sentinelAddr}${country ? ` (country: ${country})` : ''}${protocol ? ` (protocol: ${protocol})` : ''}... (USDC settles only after a 2xx response)`);
+  const result = await provisionAgent(sentinelAddr, days, country, protocol);
   return result;
 }
 
